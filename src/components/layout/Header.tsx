@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { MoreHorizontal } from 'lucide-react';
 import { FocusPerspective, FocusScenario } from '../../types/focus';
 
@@ -13,10 +14,8 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenDemoMenu,
-  scenario,
   perspective,
   onResetToArrival,
-  currentSection,
   isBriefingActive = false,
 }) => {
   const perspectiveLabels: Record<FocusPerspective, string> = {
@@ -27,49 +26,49 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header
+    <motion.header
       id="focus-main-header"
-      className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 sm:px-12 py-4 sm:py-5 transition-all duration-500 ${
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+      className={`fixed left-0 right-0 top-0 z-50 flex h-[72px] items-center justify-between border-b px-5 transition-all duration-500 sm:px-10 lg:px-12 ${
         isBriefingActive
-          ? 'bg-[#030712]/75 backdrop-blur-[18px] border-b border-white/[0.04]'
-          : 'bg-transparent'
+          ? 'border-white/[0.055] bg-[#020611]/80 backdrop-blur-[18px]'
+          : 'border-white/[0.025] bg-[#020611]/38 backdrop-blur-[9px]'
       }`}
     >
-      {/* Left: ✦ FOCUS brand logo + Perspective */}
       <button
         id="btn-brand-home"
         onClick={onResetToArrival}
-        className="group flex items-center gap-3 text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 rounded-lg p-1 -ml-1"
+        className="group -ml-1 flex items-center gap-3 rounded-lg p-1 text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
       >
-        <span className="text-blue-400 text-xl font-bold tracking-tight transition-transform duration-300 group-hover:scale-110">
+        <span className="bg-gradient-to-br from-sky-300 via-blue-400 to-violet-500 bg-clip-text text-xl font-bold tracking-tight text-transparent transition-transform duration-300 group-hover:scale-110">
           ✦
         </span>
-        <span className="text-white font-bold tracking-[0.2em] text-sm sm:text-base font-['Outfit',sans-serif]">
+        <span className="font-['Segoe_UI',sans-serif] text-sm font-semibold tracking-[0.34em] text-white sm:text-[15px]">
           FOCUS
         </span>
-        <span className="hidden sm:inline-block pl-2 border-l border-white/[0.08] text-xs font-light text-slate-400">
+        <span className="ml-2 hidden rounded-full border border-white/[0.08] bg-slate-950/25 px-3 py-1.5 text-[9px] font-medium uppercase tracking-[0.06em] text-slate-500 sm:inline-block">
           {perspectiveLabels[perspective]}
         </span>
       </button>
 
-      {/* Right: Status indicator + Demo controls */}
-      <div className="flex items-center gap-5">
-        <div className="flex items-center gap-2 text-xs text-slate-400 font-light">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+      <div className="flex items-center gap-4 sm:gap-5">
+        <div className="flex items-center gap-2 text-[11px] font-light text-slate-400 sm:text-xs">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_7px_rgba(52,211,153,.75)]" />
           <span>Briefing de hoy</span>
         </div>
 
-        {/* Demo configuration button (···) */}
         <button
           id="btn-open-demo-settings"
           onClick={onOpenDemoMenu}
           aria-label="Abrir controles de demostración"
-          className="flex items-center justify-center w-8 h-8 text-slate-400 hover:text-white bg-slate-900/60 hover:bg-slate-800/80 border border-white/[0.06] rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.08] bg-slate-950/25 text-slate-400 transition-all duration-200 hover:border-white/[0.14] hover:bg-slate-900/70 hover:text-white focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400"
           title="Modo Demostración y Escenarios"
         >
-          <MoreHorizontal className="w-4 h-4" />
+          <MoreHorizontal className="h-4 w-4" />
         </button>
       </div>
-    </header>
+    </motion.header>
   );
 };

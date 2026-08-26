@@ -10,6 +10,8 @@ export type FocusCoreState =
   | 'anomaly' 
   | 'stable' 
   | 'complete' 
+  | 'critical'
+  | 'analysis'
   | 'default';
 
 export interface DimensionSummary {
@@ -21,6 +23,36 @@ export interface DimensionSummary {
   anomaliesSummary: string;
   stableCount: number;
   stableSummary: string;
+}
+
+export interface FocusPriorityTrendPoint {
+  label: string;
+  value: number;
+  displayValue?: string;
+}
+
+export interface FocusPriorityArea {
+  id: string;
+  label: string;
+  currentMetric: string;
+  usualMetric: string;
+  deltaPercentage: number;
+}
+
+/**
+ * Optional presentation payload supplied by the host platform. FOCUS owns the
+ * visual language; each integration supplies the labels, scale and entities.
+ */
+export interface FocusPriorityVisualization {
+  metricLabel: string;
+  currentStateLabel: string;
+  inflectionLabel: string;
+  trendDirection: 'up' | 'down' | 'stable';
+  trendLabel: string;
+  trendSummary: string;
+  trendPoints: FocusPriorityTrendPoint[];
+  inflectionIndex: number;
+  affectedAreas: FocusPriorityArea[];
 }
 
 export interface FocusPriority {
@@ -35,6 +67,7 @@ export interface FocusPriority {
   currentMetric: string;
   deltaPercentage: number;
   startedTimeAgo: string;
+  visualization?: FocusPriorityVisualization;
   reasons: {
     number: string;
     label: string;

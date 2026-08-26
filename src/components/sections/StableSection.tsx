@@ -1,193 +1,90 @@
 import React from 'react';
-import { motion } from 'motion/react';
-import { Check, ShieldCheck } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
 import { FocusStableSummary } from '../../types/focus';
-import { FocusCore } from '../core/FocusCore';
+import { ChapterEyebrow } from '../briefing/ChapterEyebrow';
 
 interface StableSectionProps {
   stable: FocusStableSummary;
+  areaCount?: number;
 }
 
-export const StableSection: React.FC<StableSectionProps> = ({ stable }) => {
+const stableAreas = [
+  'Admisiones', 'Validación', 'Asignación', 'Control', 'Archivo', 'Entrega',
+  'Calidad', 'Documentación', 'Seguimiento', 'Cierre', 'Planeación', 'Servicio',
+];
+
+const nodePositions = [
+  [12, 28], [27, 15], [44, 27], [63, 13], [82, 30], [72, 48],
+  [87, 70], [61, 76], [43, 62], [25, 79], [9, 63], [48, 44],
+];
+
+export const StableSection: React.FC<StableSectionProps> = ({ stable, areaCount = stable.monitoredProcessesCount }) => {
+  const reduce = !!useReducedMotion();
+  const areas = stableAreas.slice(0, Math.min(areaCount, stableAreas.length));
+
   return (
-    <div className="w-full">
-      {/* Chapter 05: Stability Constellation */}
-      <section
-        id="section-chapter-stability"
-        className="relative min-h-[90vh] w-full flex flex-col justify-center items-center px-6 sm:px-12 max-w-7xl mx-auto py-16 z-10 select-none text-center"
-      >
-        {/* Chapter Eyebrow */}
+    <section id="section-chapter-stability" className="briefing-chapter briefing-chapter--stable">
+      <div className="briefing-chapter__inner">
+        <ChapterEyebrow number="05 / 05" label="Todo lo demás" tone="emerald" />
+
         <motion.div
-          className="flex items-center justify-center gap-3 text-xs font-mono tracking-widest text-emerald-400 font-semibold mb-4"
-          initial={{ opacity: 0, y: 15 }}
+          className="stable-heading"
+          initial={reduce ? false : { opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
+          viewport={{ once: true, amount: 0.6 }}
+          transition={{ duration: 0.7 }}
         >
-          <span>05 / 05</span>
-          <span className="w-1 h-1 rounded-full bg-emerald-400" />
-          <span className="uppercase tracking-widest">ESTABILIDAD OPERATIVA</span>
+          <p className="briefing-kicker">El valor de no interrumpir</p>
+          <h2 className="briefing-title">{areaCount} áreas revisadas.<br />Ninguna necesita tu atención.</h2>
         </motion.div>
 
-        {/* Main Headline */}
-        <motion.h2
-          className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white font-['Outfit',sans-serif] leading-[1.15] max-w-3xl mb-12"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.1 }}
+        <motion.div
+          className="stability-field"
+          initial={reduce ? false : { opacity: 0, scale: 0.96 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true, amount: 0.35 }}
+          transition={{ duration: 0.9 }}
+          aria-label={`${areaCount} áreas operan dentro de parámetros`}
         >
-          Todo lo demás sigue su curso.
-        </motion.h2>
-
-        {/* Central Serene Constellation with Emerald Core */}
-        <div className="relative w-full max-w-4xl min-h-[380px] flex items-center justify-center my-4">
-          {/* Subtle connecting constellation SVG lines */}
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none hidden md:block"
-            viewBox="0 0 800 380"
-            fill="none"
-          >
-            <motion.line
-              x1="220"
-              y1="110"
-              x2="350"
-              y2="190"
-              stroke="rgba(16, 185, 129, 0.2)"
-              strokeWidth="1"
-              strokeDasharray="3 6"
-            />
-            <motion.line
-              x1="220"
-              y1="270"
-              x2="350"
-              y2="190"
-              stroke="rgba(16, 185, 129, 0.2)"
-              strokeWidth="1"
-              strokeDasharray="3 6"
-            />
-            <motion.line
-              x1="580"
-              y1="110"
-              x2="450"
-              y2="190"
-              stroke="rgba(16, 185, 129, 0.2)"
-              strokeWidth="1"
-              strokeDasharray="3 6"
-            />
-            <motion.line
-              x1="580"
-              y1="270"
-              x2="450"
-              y2="190"
-              stroke="rgba(16, 185, 129, 0.2)"
-              strokeWidth="1"
-              strokeDasharray="3 6"
-            />
+          <svg viewBox="0 0 900 430" aria-hidden="true">
+            <ellipse cx="450" cy="215" rx="355" ry="148" />
+            <ellipse cx="450" cy="215" rx="260" ry="105" />
+            <path d="M90 215 C250 75 650 75 810 215 C650 355 250 355 90 215 Z" />
           </svg>
-
-          {/* Central Serene Core */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.85 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="z-10"
-          >
-            <FocusCore size="medium" state="stable" />
-          </motion.div>
-
-          {/* 4 Floating Stability Signals (No heavy box) */}
-
-          {/* Signal 1: Top-Left */}
-          <motion.div
-            className="md:absolute md:left-4 md:top-14 flex items-center gap-3 p-2 cursor-default group"
-            initial={{ opacity: 0, x: -15 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <div className="w-5 h-5 rounded-full bg-emerald-950/80 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <Check className="w-3 h-3" />
-            </div>
-            <span className="text-sm font-mono text-slate-300 group-hover:text-white transition-colors">
-              {stable.monitoredProcessesCount} procesos normales
-            </span>
-          </motion.div>
-
-          {/* Signal 2: Bottom-Left */}
-          <motion.div
-            className="md:absolute md:left-4 md:bottom-14 flex items-center gap-3 p-2 cursor-default group"
-            initial={{ opacity: 0, x: -15 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <div className="w-5 h-5 rounded-full bg-emerald-950/80 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <Check className="w-3 h-3" />
-            </div>
-            <span className="text-sm font-mono text-slate-300 group-hover:text-white transition-colors">
-              Sin bloqueos críticos
-            </span>
-          </motion.div>
-
-          {/* Signal 3: Top-Right */}
-          <motion.div
-            className="md:absolute md:right-4 md:top-14 flex items-center gap-3 p-2 cursor-default group text-left md:text-right"
-            initial={{ opacity: 0, x: 15 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-          >
-            <span className="text-sm font-mono text-slate-300 group-hover:text-white transition-colors order-2 md:order-1">
-              Tiempos dentro de rango
-            </span>
-            <div className="w-5 h-5 rounded-full bg-emerald-950/80 border border-emerald-500/30 flex items-center justify-center text-emerald-400 order-1 md:order-2">
-              <Check className="w-3 h-3" />
-            </div>
-          </motion.div>
-
-          {/* Signal 4: Bottom-Right */}
-          <motion.div
-            className="md:absolute md:right-4 md:bottom-14 flex items-center gap-3 p-2 cursor-default group text-left md:text-right"
-            initial={{ opacity: 0, x: 15 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-          >
-            <span className="text-sm font-mono text-slate-300 group-hover:text-white transition-colors order-2 md:order-1">
-              Sin otras anomalías
-            </span>
-            <div className="w-5 h-5 rounded-full bg-emerald-950/80 border border-emerald-500/30 flex items-center justify-center text-emerald-400 order-1 md:order-2">
-              <Check className="w-3 h-3" />
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Editorial Philosophical Note */}
-        <motion.p
-          className="text-slate-400 text-base sm:text-lg font-light italic max-w-2xl mx-auto mt-10 leading-relaxed"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-        >
-          "{stable.editorialNote}"
-        </motion.p>
-      </section>
-
-      {/* Moment of Silence (Visual Breathing Room) */}
-      <div className="w-full min-h-[35vh] flex items-center justify-center pointer-events-none select-none">
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 0.6 }}
-          viewport={{ once: true }}
-          transition={{ duration: 1.5 }}
-          className="text-[11px] font-mono tracking-[0.3em] uppercase text-slate-600 font-light"
-        >
-          ··· RESPIRA Y REFLEXIONA ···
+          {areas.map((area, index) => {
+            const [left, top] = nodePositions[index];
+            return (
+              <motion.button
+                type="button"
+                key={area}
+                className="stability-node"
+                style={{ left: `${left}%`, top: `${top}%` }}
+                initial={reduce ? false : { opacity: 0, scale: 0 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: 0.06 * index }}
+                aria-label={`${area}. Dentro de parámetros`}
+              >
+                <i aria-hidden="true" />
+                <span><strong>{area}</strong><small>Dentro de parámetros</small></span>
+              </motion.button>
+            );
+          })}
+          <div className="stability-field__center" aria-hidden="true">
+            <i /><span>OPERACIÓN ESTABLE</span>
+          </div>
         </motion.div>
+
+        <motion.p
+          className="stable-principle"
+          initial={reduce ? false : { opacity: 0, y: 14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.7 }}
+          transition={{ duration: 0.75, delay: 0.2 }}
+        >
+          FOCUS también decide <strong>qué no mostrarte.</strong>
+        </motion.p>
       </div>
-    </div>
+    </section>
   );
 };

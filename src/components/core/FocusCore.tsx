@@ -1,6 +1,7 @@
-import React from 'react';
-import { motion } from 'motion/react';
+import React, { useId } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { FocusCoreState } from '../../types/focus';
+import { FocusCoreCanvas } from './FocusCoreCanvas';
 
 interface FocusCoreProps {
   size?: 'hero' | 'large' | 'medium' | 'small' | 'companion';
@@ -9,6 +10,9 @@ interface FocusCoreProps {
   onHoverStateChange?: (hovered: boolean) => void;
   className?: string;
   anomalyActive?: boolean;
+  variant?: 'orb' | 'particle';
+  /** 'letter' = geometric F mark (hero landing); 'spark' = four-point star */
+  markStyle?: 'spark' | 'letter';
 }
 
 export const FocusCore: React.FC<FocusCoreProps> = ({
@@ -18,7 +22,11 @@ export const FocusCore: React.FC<FocusCoreProps> = ({
   onHoverStateChange,
   className = '',
   anomalyActive = false,
+  variant = 'orb',
+  markStyle = 'letter',
 }) => {
+  const shouldReduceMotion = useReducedMotion();
+  const letterGradientId = `focus-letter-${useId().replace(/:/g, '')}`;
   // Color configuration by state
   const stateThemes: Record<
     FocusCoreState,
@@ -95,6 +103,24 @@ export const FocusCore: React.FC<FocusCoreProps> = ({
       sphereEdge: '#061C1E',
       haloOpacity: 0.55,
     },
+    critical: {
+      primary: '#3B82F6',
+      secondary: '#F43F5E',
+      tertiary: '#FB7185',
+      glow: 'rgba(244, 63, 94, 0.5)',
+      sphereCenter: '#FDA4AF',
+      sphereEdge: '#260814',
+      haloOpacity: 0.64,
+    },
+    analysis: {
+      primary: '#238BFF',
+      secondary: '#35D9FF',
+      tertiary: '#A855F7',
+      glow: 'rgba(59, 130, 246, 0.5)',
+      sphereCenter: '#7DD3FC',
+      sphereEdge: '#091533',
+      haloOpacity: 0.58,
+    },
     default: {
       primary: '#3B82F6',
       secondary: '#6366F1',
@@ -118,11 +144,98 @@ export const FocusCore: React.FC<FocusCoreProps> = ({
   };
 
   const isAnomaly = state === 'anomaly' || anomalyActive;
+  const useLetterMark = markStyle === 'letter' || size === 'hero';
+
+  if (variant === 'particle') {
+    const particleGlow =
+      state === 'stable' || state === 'complete'
+        ? 'rgba(37, 214, 181, 0.22)'
+        : state === 'critical'
+          ? 'rgba(244, 63, 94, 0.2)'
+          : state === 'anomaly'
+            ? 'rgba(168, 85, 247, 0.22)'
+            : state === 'change'
+              ? 'rgba(6, 182, 212, 0.2)'
+              : 'rgba(30, 100, 255, 0.2)';
+
+    return (
+      <div
+        className={`focus-particle-core relative flex items-center justify-center select-none ${sizeMap[size]} ${className}`}
+        data-core-state={state}
+        onMouseEnter={() => onHoverStateChange?.(true)}
+        onMouseLeave={() => onHoverStateChange?.(false)}
+      >
+        {/* CAPA 3 — Campo: halo + órbitas extendidas */}
+        <div
+          className="focus-particle-core__field pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          aria-hidden="true"
+        />
+        <div
+          className="focus-particle-core__aura absolute inset-[-18%] rounded-full pointer-events-none"
+          style={{
+            background: `radial-gradient(circle at center,
+              ${particleGlow} 0%,
+              rgba(30, 70, 200, 0.07) 25%,
+              rgba(80, 30, 180, 0.035) 45%,
+              transparent 70%)`,
+          }}
+        />
+        <div className="focus-particle-core__orbit focus-particle-core__orbit--field absolute inset-[-8%] rounded-full pointer-events-none" />
+        <div className="focus-particle-core__orbit focus-particle-core__orbit--outer absolute inset-[2%] rounded-full pointer-events-none" />
+        <div className="focus-particle-core__orbit focus-particle-core__orbit--inner absolute inset-[18%] rounded-full pointer-events-none" />
+
+        {/* CAPA 2 — Inteligencia: filamentos / partículas */}
+        <FocusCoreCanvas state={state} interactive={interactive && !shouldReduceMotion} className="absolute inset-[-6%]" />
+
+        {/* CAPA 1 — Núcleo */}
+        <div className="focus-particle-core__void absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none" />
+        {useLetterMark && (
+          <div className="focus-particle-core__mark-ring pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full" aria-hidden="true" />
+        )}
+        <motion.div
+          className={`focus-particle-core__mark relative z-10 flex items-center justify-center pointer-events-none ${useLetterMark ? 'focus-particle-core__mark--letter' : ''}`}
+          animate={
+            shouldReduceMotion
+              ? { opacity: 0.92, scale: 1 }
+              : { opacity: [0.88, 1, 0.88], scale: [1, useLetterMark ? 1.03 : 1.05, 1] }
+          }
+          transition={
+            shouldReduceMotion
+              ? { duration: 0.01 }
+              : { duration: 7.2, repeat: Infinity, ease: 'easeInOut', delay: 1.4 }
+          }
+        >
+          {useLetterMark ? (
+            <svg className="focus-particle-core__letter" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <defs>
+                <linearGradient id={letterGradientId} x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#f0fbff" />
+                  <stop offset="45%" stopColor="#7dd3fc" />
+                  <stop offset="100%" stopColor="#a78bfa" />
+                </linearGradient>
+              </defs>
+              <path
+                fill={`url(#${letterGradientId})`}
+                d="M14 12h36v9H24v9h20v9H24v13H14V12z"
+              />
+            </svg>
+          ) : (
+            <svg className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-[#d9f7ff]" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" />
+            </svg>
+          )}
+        </motion.div>
+
+        <div className="focus-particle-core__horizon absolute -bottom-[1%] left-[14%] right-[14%] h-px pointer-events-none" />
+        <div className="focus-particle-core__floor-light pointer-events-none absolute left-1/2 top-[78%] -translate-x-1/2" aria-hidden="true" />
+      </div>
+    );
+  }
 
   return (
     <div
-      id="focus-living-core"
       className={`relative flex items-center justify-center select-none ${sizeMap[size]} ${className}`}
+      data-core-state={state}
       onMouseEnter={() => onHoverStateChange && onHoverStateChange(true)}
       onMouseLeave={() => onHoverStateChange && onHoverStateChange(false)}
     >
@@ -275,26 +388,38 @@ export const FocusCore: React.FC<FocusCoreProps> = ({
           }}
         />
 
-        {/* Central Luminous ✦ Sparkle Core (Silent Intelligence Signature) */}
+        {/* Central FOCUS signature */}
         <motion.div
           className="relative z-10 flex items-center justify-center text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.95)]"
-          animate={{
-            scale: state === 'attention' ? [1, 1.25, 1] : [1, 1.15, 1],
-            rotate: [0, 90, 180, 270, 360],
-          }}
+          animate={
+            useLetterMark
+              ? { scale: state === 'attention' ? [1, 1.09, 1] : [1, 1.05, 1] }
+              : {
+                  scale: state === 'attention' ? [1, 1.25, 1] : [1, 1.15, 1],
+                  rotate: [0, 90, 180, 270, 360],
+                }
+          }
           transition={{
             scale: { duration: state === 'attention' ? 2.5 : 4.5, repeat: Infinity, ease: 'easeInOut' },
             rotate: { duration: 60, repeat: Infinity, ease: 'linear' },
           }}
         >
-          <svg
-            className="w-8 h-8 sm:w-11 sm:h-11 md:w-14 md:h-14"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
-            {/* 4-point star sparkle ✦ */}
-            <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" />
-          </svg>
+          {useLetterMark ? (
+            <svg className="focus-orb__letter" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <defs>
+                <linearGradient id={letterGradientId} x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="48%" stopColor="#d9f7ff" />
+                  <stop offset="100%" stopColor={currentTheme.secondary} />
+                </linearGradient>
+              </defs>
+              <path fill={`url(#${letterGradientId})`} d="M14 12h36v9H24v9h20v9H24v13H14V12z" />
+            </svg>
+          ) : (
+            <svg className="h-8 w-8 sm:h-11 sm:w-11 md:h-14 md:w-14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" />
+            </svg>
+          )}
         </motion.div>
 
         {/* Specular glass reflection curve */}

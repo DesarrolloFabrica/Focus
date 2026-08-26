@@ -1,305 +1,392 @@
-import React, { useState } from 'react';
-import { motion } from 'motion/react';
-import { ArrowRight, Activity, TrendingUp, AlertCircle, ShieldCheck } from 'lucide-react';
+import React, { ComponentType, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
+import {
+  Activity,
+  AlertCircle,
+  ArrowRight,
+  Check,
+  ChevronDown,
+  TrendingUp,
+} from 'lucide-react';
 import { FocusBriefing, FocusCoreState } from '../../types/focus';
 import { FocusCore } from '../core/FocusCore';
+import { ArrivalCursorField } from '../effects/ArrivalCursorField';
+import { SignalConnectorKey, useSignalConnectors } from '../../hooks/useSignalConnectors';
+
+type SignalKey = SignalConnectorKey;
 
 interface ArrivalSectionProps {
   briefing: FocusBriefing;
   onStartBriefing: () => void;
-  onSelectDimension?: (dimensionKey: 'priorities' | 'changes' | 'anomalies' | 'stable') => void;
   isStartingTransition?: boolean;
 }
+
+interface SignalDefinition {
+  key: SignalKey;
+  label: string;
+  count: number;
+  summary: string;
+  color: string;
+  Icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+}
+
+const connectorColors: Record<SignalKey, string> = {
+  priorities: '#e85a6a',
+  changes: '#3bc4ef',
+  anomalies: '#a86ae8',
+  stable: '#2dd4a8',
+};
+
+const easeOut: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
   briefing,
   onStartBriefing,
-  onSelectDimension,
   isStartingTransition = false,
 }) => {
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<SignalKey | null>(null);
+  const shouldReduceMotion = useReducedMotion();
   const isStableScenario = briefing.scenario === 'stable';
+  const reduce = !!shouldReduceMotion;
+
+  const stageRef = useRef<HTMLDivElement>(null);
+  const coreRef = useRef<HTMLDivElement>(null);
+  const arrivalRef = useRef<HTMLElement>(null);
+  const signalRefs = useRef<Record<SignalKey, HTMLElement | null>>({
+    priorities: null,
+    changes: null,
+    anomalies: null,
+    stable: null,
+  });
+
+  const { connectors, stageSize, remeasure } = useSignalConnectors(
+    stageRef,
+    coreRef,
+    signalRefs,
+    !reduce,
+  );
+
+  const sentenceBreak = briefing.summarySentence.indexOf('.');
+  const summaryLead = sentenceBreak >= 0
+    ? briefing.summarySentence.slice(0, sentenceBreak + 1)
+    : briefing.summarySentence;
+  const summaryRest = sentenceBreak >= 0
+    ? briefing.summarySentence.slice(sentenceBreak + 1).trim()
+    : '';
+
+  const readMeta = `${briefing.estimatedReadTime} · lectura guiada`;
+
+  const signals: SignalDefinition[] = [
+    {
+      key: 'priorities',
+      label: 'Prioridades',
+      count: briefing.dimensions.prioritiesCount,
+      summary: briefing.dimensions.prioritiesSummary,
+      color: connectorColors.priorities,
+      Icon: AlertCircle,
+    },
+    {
+      key: 'changes',
+      label: 'Qué cambió',
+      count: briefing.dimensions.changesCount,
+      summary: briefing.dimensions.changesSummary,
+      color: connectorColors.changes,
+      Icon: TrendingUp,
+    },
+    {
+      key: 'anomalies',
+      label: 'Fuera de lo habitual',
+      count: briefing.dimensions.anomaliesCount,
+      summary: briefing.dimensions.anomaliesSummary,
+      color: connectorColors.anomalies,
+      Icon: Activity,
+    },
+    {
+      key: 'stable',
+      label: 'Todo lo demás',
+      count: briefing.dimensions.stableCount,
+      summary: briefing.dimensions.stableSummary,
+      color: connectorColors.stable,
+      Icon: Check,
+    },
+  ];
 
   const getCoreState = (): FocusCoreState => {
-    if (hoveredNode === 'priorities') return 'attention';
+    if (isStartingTransition) return 'critical';
+    if (hoveredNode === 'priorities') return 'critical';
     if (hoveredNode === 'changes') return 'change';
     if (hoveredNode === 'anomalies') return 'anomaly';
     if (hoveredNode === 'stable') return 'stable';
-    if (isStableScenario) return 'stable';
-    return 'observing';
+    if (briefing.scenario === 'stable') return 'stable';
+    if (briefing.scenario === 'high_activity') return 'critical';
+    return 'attention';
   };
+
+  const fade = (delay: number, y = 10) => ({
+    initial: reduce ? { opacity: 1 } : { opacity: 0, y },
+    animate: {
+      opacity: isStartingTransition ? 0 : 1,
+      y: isStartingTransition ? (reduce ? 0 : 6) : 0,
+    },
+    transition: {
+      duration: reduce ? 0.12 : isStartingTransition ? 0.35 : 0.55,
+      delay: reduce || isStartingTransition ? 0 : delay,
+      ease: easeOut,
+    },
+  });
 
   return (
     <section
+      ref={arrivalRef}
       id="focus-arrival-view"
-      className="relative min-h-[92vh] w-full flex flex-col items-center justify-between pt-24 pb-12 px-6 sm:px-12 max-w-7xl mx-auto z-10 select-none"
+      className={`focus-arrival relative w-full overflow-hidden px-5 sm:px-10 lg:px-14 ${isStartingTransition ? 'is-departing' : ''}`}
     >
-      {/* Top Narrative Greeting */}
+      <div className="focus-arrival__atmosphere pointer-events-none absolute inset-0" aria-hidden="true" />
+      <div className="focus-arrival__stars pointer-events-none absolute inset-0" aria-hidden="true" />
+      <ArrivalCursorField targetRef={arrivalRef} />
       <motion.div
-        className="text-center max-w-3xl mx-auto space-y-4"
-        initial={{ opacity: 0, y: 15 }}
-        animate={{
-          opacity: isStartingTransition ? 0.2 : 1,
-          scale: isStartingTransition ? 0.96 : 1,
-          y: 0,
-        }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className="inline-flex items-center gap-2 text-xs font-mono font-medium tracking-widest text-blue-400 uppercase">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
-          <span>{briefing.greeting} · {briefing.userName}</span>
+        className="focus-arrival__analysis-transition pointer-events-none absolute inset-0"
+        initial={false}
+        animate={{ opacity: isStartingTransition ? 1 : 0 }}
+        transition={{ duration: reduce ? 0.12 : 0.7, ease: easeOut }}
+        aria-hidden="true"
+      />
+      <svg className="focus-arrival__orbits pointer-events-none absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2" viewBox="0 0 1280 780" aria-hidden="true">
+        <ellipse cx="640" cy="390" rx="470" ry="310" />
+        <ellipse cx="640" cy="390" rx="370" ry="246" />
+        <ellipse cx="640" cy="390" rx="270" ry="180" />
+      </svg>
+
+      <div className="focus-arrival__shell relative z-10 mx-auto w-full max-w-[1480px]">
+        <div className="focus-arrival__intro mx-auto w-full max-w-5xl text-center">
+          <motion.div
+            className="focus-arrival__greeting inline-flex items-center gap-3 text-[10px] font-medium uppercase tracking-[0.19em] text-sky-400 sm:text-[11px]"
+            {...fade(0.35, 8)}
+          >
+            <span className="focus-processing-dots" aria-hidden="true">
+              <i /><i /><i /><i /><i /><i />
+            </span>
+            <span>{briefing.greeting}</span>
+          </motion.div>
+
+          <motion.h1
+            className="focus-arrival__headline font-['Segoe_UI',sans-serif] font-[480] tracking-[-0.045em]"
+            aria-label={
+              isStableScenario
+                ? 'Revisé tu operación completa. Todo está bajo control.'
+                : 'Revisé tu operación completa. Esto es lo que importa hoy.'
+            }
+          >
+            {isStableScenario ? (
+              <>
+                <motion.span className="block text-slate-400" {...fade(0.5, 12)}>
+                  Revisé tu operación completa.
+                </motion.span>
+                <motion.span className="mt-0.5 block text-white" {...fade(0.65, 12)}>
+                  Todo está <span className="focus-arrival__stable-word">bajo control.</span>
+                </motion.span>
+              </>
+            ) : (
+              <>
+                <motion.span className="block text-slate-400" {...fade(0.5, 12)}>
+                  Revisé tu operación completa.
+                </motion.span>
+                <motion.span className="mt-0.5 block text-white" {...fade(0.65, 12)}>
+                  Esto es lo que <span className="focus-arrival__gradient-word">importa</span> hoy.
+                </motion.span>
+              </>
+            )}
+          </motion.h1>
+
+          <motion.p className="focus-arrival__summary mx-auto max-w-2xl font-light text-slate-400" {...fade(0.8, 10)}>
+            <span className="block">{summaryLead}</span>
+            {summaryRest && <span className="block">{summaryRest}</span>}
+          </motion.p>
         </div>
 
-        <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight text-white font-['Outfit',sans-serif] leading-[1.15]">
-          {isStableScenario ? (
-            <>
-              Revisé tu operación completa.{' '}
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-200">
-                Todo está bajo control.
-              </span>
-            </>
-          ) : (
-            <>
-              Revisé tu operación completa.{' '}
-              <br className="hidden sm:inline" />
-              Esto es lo que <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-300">importa</span> hoy.
-            </>
+        <div ref={stageRef} className="focus-orbit-stage relative w-full">
+          <motion.div
+            className="focus-orbit-stage__glow pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            initial={reduce ? false : { opacity: 0, scale: 0.7 }}
+            animate={{
+              opacity: isStartingTransition ? 0.55 : 1,
+              scale: isStartingTransition ? 0.88 : 1,
+            }}
+            transition={{ duration: reduce ? 0.12 : isStartingTransition ? 0.45 : 0.7, delay: reduce || isStartingTransition ? 0 : 0.9, ease: easeOut }}
+            aria-hidden="true"
+          />
+
+          {stageSize.width > 0 && connectors.length > 0 && (
+            <svg
+              className="focus-signal-connectors pointer-events-none absolute inset-0 hidden h-full w-full lg:block"
+              viewBox={`0 0 ${stageSize.width} ${stageSize.height}`}
+              fill="none"
+              aria-hidden="true"
+            >
+              <defs>
+                {connectors.map(({ key, start, end }) => {
+                  const c = connectorColors[key];
+                  return (
+                    <linearGradient
+                      key={`grad-${key}`}
+                      id={`focus-stream-${key}`}
+                      gradientUnits="userSpaceOnUse"
+                      x1={start.x}
+                      y1={start.y}
+                      x2={end.x}
+                      y2={end.y}
+                    >
+                      <stop offset="0%" stopColor={c} stopOpacity="0.14" />
+                      <stop offset="55%" stopColor={c} stopOpacity="0.24" />
+                      <stop offset="100%" stopColor={c} stopOpacity="0.42" />
+                    </linearGradient>
+                  );
+                })}
+              </defs>
+
+              {connectors.map((connector, index) => {
+                const key = connector.key;
+                const isActive = hoveredNode === key;
+                const color = connectorColors[key];
+                return (
+                  <g key={key} className={isActive ? 'is-active' : ''}>
+                    <motion.path
+                      d={connector.path}
+                      stroke={isActive ? color : `url(#focus-stream-${key})`}
+                      strokeWidth={isActive ? 1.15 : 0.85}
+                      strokeLinecap="round"
+                      initial={reduce ? false : { pathLength: 0, opacity: 0 }}
+                      animate={{
+                        pathLength: isStartingTransition ? 0 : 1,
+                        opacity: isStartingTransition ? 0 : isActive ? 0.95 : 0.78,
+                      }}
+                      transition={{
+                        duration: reduce ? 0.12 : isStartingTransition ? 0.4 : 0.7,
+                        delay: reduce || isStartingTransition ? 0 : 1.5 + index * 0.05,
+                        ease: easeOut,
+                      }}
+                    />
+                    <motion.circle
+                      cx={connector.start.x}
+                      cy={connector.start.y}
+                      r={isActive ? 3 : 2.4}
+                      fill={color}
+                      initial={reduce ? false : { opacity: 0 }}
+                      animate={{ opacity: isStartingTransition ? 0 : isActive ? 0.95 : 0.5 }}
+                      transition={{ delay: reduce || isStartingTransition ? 0 : 1.55 + index * 0.05, duration: 0.4 }}
+                    />
+                    <motion.circle
+                      cx={connector.end.x}
+                      cy={connector.end.y}
+                      r={isActive ? 3.6 : 2.8}
+                      fill={color}
+                      initial={reduce ? false : { opacity: 0 }}
+                      animate={{ opacity: isStartingTransition ? 0 : isActive ? 1 : 0.75 }}
+                      transition={{ delay: reduce || isStartingTransition ? 0 : 1.55 + index * 0.05, duration: 0.4 }}
+                      style={isActive ? { filter: `drop-shadow(0 0 4px ${color})` } : undefined}
+                    />
+                    {!reduce && (
+                      <circle r="2.4" fill={color} opacity="0">
+                        <animate
+                          attributeName="opacity"
+                          values="0;0.9;0.9;0;0"
+                          keyTimes="0;0.04;0.2;0.24;1"
+                          dur={connector.cycleDur}
+                          begin={connector.pulseBegin}
+                          repeatCount="indefinite"
+                        />
+                        <animateMotion
+                          path={connector.path}
+                          dur={connector.cycleDur}
+                          begin={connector.pulseBegin}
+                          repeatCount="indefinite"
+                          keyTimes="0;0.22;1"
+                          keyPoints="0;1;1"
+                          calcMode="linear"
+                        />
+                      </circle>
+                    )}
+                  </g>
+                );
+              })}
+            </svg>
           )}
-        </h1>
 
-        <p className="text-slate-400 text-base sm:text-lg max-w-xl mx-auto font-light leading-relaxed">
-          {briefing.summarySentence}
-        </p>
-      </motion.div>
-
-      {/* Central Living Constellation: Focus Core + 4 Floating Signal Nodes */}
-      <div className="relative w-full max-w-5xl my-4 sm:my-6 flex items-center justify-center min-h-[380px] sm:min-h-[460px]">
-        {/* Fine SVG Signal Lines connecting floating nodes to Core center */}
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none hidden lg:block"
-          viewBox="0 0 1000 500"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          {/* Signal Line 1: Top-Left -> Priorities */}
-          <motion.path
-            d="M 320 140 L 410 200 L 440 225"
-            stroke={hoveredNode === 'priorities' ? '#F43F5E' : 'rgba(255, 255, 255, 0.12)'}
-            strokeWidth={hoveredNode === 'priorities' ? '1.8' : '1'}
-            strokeDasharray={hoveredNode === 'priorities' ? 'none' : '3 6'}
-            initial={{ pathLength: 0 }}
-            animate={{
-              pathLength: isStartingTransition ? 0 : 1,
-              opacity: isStartingTransition ? 0 : 1,
-            }}
-            transition={{ duration: 0.8, delay: 0.1 }}
-          />
-          <circle cx="440" cy="225" r="2.5" fill={hoveredNode === 'priorities' ? '#F43F5E' : '#60A5FA'} className="opacity-80" />
-
-          {/* Signal Line 2: Bottom-Left -> Changes */}
-          <motion.path
-            d="M 320 360 L 410 300 L 440 275"
-            stroke={hoveredNode === 'changes' ? '#06B6D4' : 'rgba(255, 255, 255, 0.12)'}
-            strokeWidth={hoveredNode === 'changes' ? '1.8' : '1'}
-            strokeDasharray={hoveredNode === 'changes' ? 'none' : '3 6'}
-            initial={{ pathLength: 0 }}
-            animate={{
-              pathLength: isStartingTransition ? 0 : 1,
-              opacity: isStartingTransition ? 0 : 1,
-            }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          />
-          <circle cx="440" cy="275" r="2.5" fill={hoveredNode === 'changes' ? '#06B6D4' : '#38BDF8'} className="opacity-80" />
-
-          {/* Signal Line 3: Top-Right -> Anomalies */}
-          <motion.path
-            d="M 680 140 L 590 200 L 560 225"
-            stroke={hoveredNode === 'anomalies' ? '#A855F7' : 'rgba(255, 255, 255, 0.12)'}
-            strokeWidth={hoveredNode === 'anomalies' ? '1.8' : '1'}
-            strokeDasharray={hoveredNode === 'anomalies' ? 'none' : '3 6'}
-            initial={{ pathLength: 0 }}
-            animate={{
-              pathLength: isStartingTransition ? 0 : 1,
-              opacity: isStartingTransition ? 0 : 1,
-            }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-          />
-          <circle cx="560" cy="225" r="2.5" fill={hoveredNode === 'anomalies' ? '#A855F7' : '#C084FC'} className="opacity-80" />
-
-          {/* Signal Line 4: Bottom-Right -> Stable */}
-          <motion.path
-            d="M 680 360 L 590 300 L 560 275"
-            stroke={hoveredNode === 'stable' ? '#10B981' : 'rgba(255, 255, 255, 0.12)'}
-            strokeWidth={hoveredNode === 'stable' ? '1.8' : '1'}
-            strokeDasharray={hoveredNode === 'stable' ? 'none' : '3 6'}
-            initial={{ pathLength: 0 }}
-            animate={{
-              pathLength: isStartingTransition ? 0 : 1,
-              opacity: isStartingTransition ? 0 : 1,
-            }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-          />
-          <circle cx="560" cy="275" r="2.5" fill={hoveredNode === 'stable' ? '#10B981' : '#34D399'} className="opacity-80" />
-        </svg>
-
-        {/* Center Focus Core */}
-        <motion.div
-          className="z-10 cursor-pointer"
-          onClick={onStartBriefing}
-          animate={{
-            scale: isStartingTransition ? 1.05 : 1,
-          }}
-          transition={{ duration: 0.8, ease: 'easeInOut' }}
-        >
-          <FocusCore size="hero" state={getCoreState()} />
-        </motion.div>
-
-        {/* 4 Floating Signal Nodes (No heavy card boxes, pure floating editorial annotations) */}
-        
-        {/* Node 1: Top-Left (Priorities) */}
-        <motion.div
-          id="node-priorities"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{
-            opacity: isStartingTransition ? 0 : 1,
-            x: isStartingTransition ? -40 : 0,
-          }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          onMouseEnter={() => setHoveredNode('priorities')}
-          onMouseLeave={() => setHoveredNode(null)}
-          onClick={() => onSelectDimension && onSelectDimension('priorities')}
-          className="lg:absolute lg:left-8 lg:top-14 flex items-center gap-3 p-2 group cursor-pointer transition-all"
-        >
-          <div className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#F43F5E] group-hover:scale-125 transition-transform" />
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono font-semibold tracking-wider uppercase text-rose-400">
-                PRIORIDADES
-              </span>
-              <span className="text-xs text-rose-300 font-mono">
-                {briefing.dimensions.prioritiesCount}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 font-light group-hover:text-slate-200 transition-colors">
-              {briefing.dimensions.prioritiesSummary}
-            </p>
+          <div ref={coreRef} className="focus-orbit-stage__core">
+            <motion.div
+              className="z-10 cursor-pointer"
+              initial={reduce ? false : { opacity: 0, scale: 0.82 }}
+              animate={{
+                opacity: isStartingTransition ? 0.42 : 1,
+                scale: isStartingTransition ? 0.74 : 1,
+                y: isStartingTransition ? 28 : 0,
+                filter: isStartingTransition ? 'saturate(1.35) blur(1px)' : 'saturate(1) blur(0px)',
+              }}
+              transition={{
+                duration: reduce ? 0.12 : isStartingTransition ? 0.82 : 0.75,
+                delay: reduce || isStartingTransition ? 0 : 1.0,
+                ease: easeOut,
+              }}
+              onClick={() => !isStartingTransition && onStartBriefing()}
+              role="button"
+              tabIndex={0}
+              aria-label="Comenzar briefing desde el núcleo FOCUS"
+              onKeyDown={(event) => {
+                if (!isStartingTransition && (event.key === 'Enter' || event.key === ' ')) onStartBriefing();
+              }}
+            >
+              <FocusCore size="hero" state={getCoreState()} variant="particle" markStyle="letter" />
+            </motion.div>
           </div>
-        </motion.div>
 
-        {/* Node 2: Bottom-Left (Changes) */}
-        <motion.div
-          id="node-changes"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{
-            opacity: isStartingTransition ? 0 : 1,
-            x: isStartingTransition ? -40 : 0,
-          }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          onMouseEnter={() => setHoveredNode('changes')}
-          onMouseLeave={() => setHoveredNode(null)}
-          onClick={() => onSelectDimension && onSelectDimension('changes')}
-          className="lg:absolute lg:left-8 lg:bottom-14 flex items-center gap-3 p-2 group cursor-pointer transition-all"
-        >
-          <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#06B6D4] group-hover:scale-125 transition-transform" />
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono font-semibold tracking-wider uppercase text-cyan-400">
-                QUÉ CAMBIÓ
-              </span>
-              <span className="text-xs text-cyan-300 font-mono">
-                {briefing.dimensions.changesCount}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 font-light group-hover:text-slate-200 transition-colors">
-              {briefing.dimensions.changesSummary}
-            </p>
+          <div className="focus-signal-list relative z-20">
+            {signals.map(({ key, label, count, summary, color, Icon }, index) => (
+              <motion.div
+                key={key}
+                id={`node-${key}`}
+                ref={(node) => {
+                  signalRefs.current[key] = node;
+                  if (node) remeasure();
+                }}
+                className={`focus-signal focus-signal--${key} group ${hoveredNode === key ? 'is-active' : ''}`}
+                style={{ '--signal-color': color } as React.CSSProperties}
+                onMouseEnter={() => setHoveredNode(key)}
+                onMouseLeave={() => setHoveredNode(null)}
+                {...fade(1.6 + index * 0.08, 0)}
+              >
+                <span className="focus-signal__icon" aria-hidden="true">
+                  <Icon className="focus-signal__glyph" strokeWidth={1.8} />
+                </span>
+                <span className="focus-signal__copy">
+                  <span className="focus-signal__heading">
+                    <span>{label}</span>
+                    <span className="focus-signal__count">{count}</span>
+                  </span>
+                  <span className="focus-signal__summary">{summary}</span>
+                </span>
+              </motion.div>
+            ))}
           </div>
-        </motion.div>
+        </div>
 
-        {/* Node 3: Top-Right (Anomalies) */}
-        <motion.div
-          id="node-anomalies"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{
-            opacity: isStartingTransition ? 0 : 1,
-            x: isStartingTransition ? 40 : 0,
-          }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          onMouseEnter={() => setHoveredNode('anomalies')}
-          onMouseLeave={() => setHoveredNode(null)}
-          onClick={() => onSelectDimension && onSelectDimension('anomalies')}
-          className="lg:absolute lg:right-8 lg:top-14 flex items-center gap-3 p-2 group cursor-pointer transition-all text-left lg:text-right"
-        >
-          <div className="order-2 lg:order-1">
-            <div className="flex items-center gap-2 lg:justify-end">
-              <span className="text-[11px] font-mono font-semibold tracking-wider uppercase text-purple-400">
-                FUERA DE LO HABITUAL
-              </span>
-              <span className="text-xs text-purple-300 font-mono">
-                {briefing.dimensions.anomaliesCount}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 font-light group-hover:text-slate-200 transition-colors">
-              {briefing.dimensions.anomaliesSummary}
-            </p>
-          </div>
-          <div className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_#A855F7] group-hover:scale-125 transition-transform order-1 lg:order-2" />
-        </motion.div>
-
-        {/* Node 4: Bottom-Right (Stable) */}
-        <motion.div
-          id="node-stable"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{
-            opacity: isStartingTransition ? 0 : 1,
-            x: isStartingTransition ? 40 : 0,
-          }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          onMouseEnter={() => setHoveredNode('stable')}
-          onMouseLeave={() => setHoveredNode(null)}
-          onClick={() => onSelectDimension && onSelectDimension('stable')}
-          className="lg:absolute lg:right-8 lg:bottom-14 flex items-center gap-3 p-2 group cursor-pointer transition-all text-left lg:text-right"
-        >
-          <div className="order-2 lg:order-1">
-            <div className="flex items-center gap-2 lg:justify-end">
-              <span className="text-[11px] font-mono font-semibold tracking-wider uppercase text-emerald-400">
-                TODO LO DEMÁS
-              </span>
-              <span className="text-xs text-emerald-300 font-mono">
-                {briefing.dimensions.stableCount}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 font-light group-hover:text-slate-200 transition-colors">
-              {briefing.dimensions.stableSummary}
-            </p>
-          </div>
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10B981] group-hover:scale-125 transition-transform order-1 lg:order-2" />
+        <motion.div className="focus-arrival__cta relative z-20 flex flex-col items-center text-center" {...fade(1.9, 10)}>
+          <button id="btn-start-briefing" type="button" onClick={onStartBriefing} disabled={isStartingTransition} className="focus-primary-cta group">
+            <span>{isStableScenario ? 'Verificar estado' : 'Comenzar briefing'}</span>
+            <ArrowRight className="h-4 w-4 transition-transform duration-300" />
+          </button>
+          <motion.span className="focus-arrival__cta-meta" {...fade(1.95, 6)}>
+            {readMeta}
+          </motion.span>
+          <motion.span
+            className="focus-scroll-cue flex flex-col items-center text-sky-400/70"
+            aria-hidden="true"
+            {...fade(2.0, 4)}
+          >
+            <span className="mb-0.5 tracking-[0.28em] text-[9px] opacity-70">•••••</span>
+            <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
+          </motion.span>
         </motion.div>
       </div>
-
-      {/* Primary CTA button + Reading time metadata */}
-      <motion.div
-        className="flex flex-col items-center gap-4 text-center z-10"
-        initial={{ opacity: 0, y: 15 }}
-        animate={{
-          opacity: isStartingTransition ? 0 : 1,
-          y: isStartingTransition ? 20 : 0,
-        }}
-        transition={{ duration: 0.4 }}
-      >
-        <button
-          id="btn-start-briefing"
-          onClick={onStartBriefing}
-          className="group inline-flex items-center gap-3 px-8 py-4 rounded-full text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 shadow-xl shadow-blue-600/30 hover:shadow-blue-600/50 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-        >
-          <span>{isStableScenario ? 'Verificar estado' : 'Comenzar briefing'}</span>
-          <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-        </button>
-
-        <span className="text-xs text-slate-500 font-light">
-          {briefing.estimatedReadTime} de lectura
-        </span>
-      </motion.div>
     </section>
   );
 };
