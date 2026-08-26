@@ -11,12 +11,12 @@
   }
   
   body {
-    background-color: #030712;
-    color: #F8FAFC;
+    background-color: #05070a;
+    color: #f7f8fa;
     overflow-x: hidden;
     position: relative;
     margin: 0;
-    font-family: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     text-rendering: geometricPrecision;
   }
 
@@ -875,8 +875,8 @@ html {
   position: relative;
   min-height: 100vh;
   overflow-x: clip;
-  background: #030712;
-  color: #f8fafc;
+  background: var(--iv-ink, #05070a);
+  color: var(--iv-white, #f7f8fa);
 }
 
 .focus-experience main,

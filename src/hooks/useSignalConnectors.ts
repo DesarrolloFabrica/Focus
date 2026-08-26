@@ -70,7 +70,8 @@ export function useSignalConnectors(
       const signalEl = signalRefs.current?.[key];
       if (!signalEl) continue;
 
-      const iconEl = signalEl.querySelector('.focus-signal__icon') ?? signalEl;
+      const iconEl =
+        signalEl.querySelector('.iv-intro-signal__icon, .focus-signal__icon') ?? signalEl;
       const iconRect = iconEl.getBoundingClientRect();
       const isLeft = key === 'priorities' || key === 'changes';
 

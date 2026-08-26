@@ -1,386 +1,530 @@
-import React, { ComponentType, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
   Activity,
-  AlertCircle,
   ArrowRight,
   Check,
-  ChevronDown,
-  TrendingUp,
+  Clock3,
+  Database,
+  Layers3,
+  Radar,
+  Settings2,
+  ShieldCheck,
 } from 'lucide-react';
+import focusObservatory from '../../assets/focus-observatory.png';
 import { FocusBriefing, FocusCoreState } from '../../types/focus';
-import { FocusCore } from '../core/FocusCore';
 import { ArrivalCursorField } from '../effects/ArrivalCursorField';
+import { BriefingJourneyAmbient } from '../effects/BriefingJourneyAmbient';
+import { FocusCore } from '../core/FocusCore';
 import { SignalConnectorKey, useSignalConnectors } from '../../hooks/useSignalConnectors';
 
-type SignalKey = SignalConnectorKey;
+export const IntroScrollContext = createContext<React.RefObject<HTMLDivElement | null>>({ current: null });
+
+export const useIntroScrollRoot = () => useContext(IntroScrollContext);
 
 interface ArrivalSectionProps {
   briefing: FocusBriefing;
   onStartBriefing: () => void;
   isStartingTransition?: boolean;
+  isBriefingActive?: boolean;
+  onOpenDemo?: () => void;
+  header?: React.ReactNode;
+  children?: React.ReactNode;
 }
 
-interface SignalDefinition {
-  key: SignalKey;
-  label: string;
-  count: number;
-  summary: string;
-  color: string;
-  Icon: ComponentType<{ className?: string; strokeWidth?: number }>;
-}
+const ease = [0.16, 1, 0.3, 1] as const;
 
-const connectorColors: Record<SignalKey, string> = {
+const SIGNAL_CYCLE: SignalConnectorKey[] = ['priorities', 'changes', 'anomalies', 'stable'];
+
+const connectorColors: Record<SignalConnectorKey, string> = {
   priorities: '#e85a6a',
   changes: '#3bc4ef',
   anomalies: '#a86ae8',
   stable: '#2dd4a8',
 };
 
-const easeOut: [number, number, number, number] = [0.16, 1, 0.3, 1];
-
 export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
   briefing,
   onStartBriefing,
   isStartingTransition = false,
+  isBriefingActive = false,
+  onOpenDemo,
+  header,
+  children,
 }) => {
-  const [hoveredNode, setHoveredNode] = useState<SignalKey | null>(null);
-  const shouldReduceMotion = useReducedMotion();
-  const isStableScenario = briefing.scenario === 'stable';
-  const reduce = !!shouldReduceMotion;
-
+  const reduceMotion = !!useReducedMotion();
+  const [hoveredSignal, setHoveredSignal] = useState<SignalConnectorKey | null>(null);
+  const [cycledSignal, setCycledSignal] = useState<SignalConnectorKey | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<HTMLDivElement>(null);
-  const arrivalRef = useRef<HTMLElement>(null);
-  const signalRefs = useRef<Record<SignalKey, HTMLElement | null>>({
+  const signalRefs = useRef<Record<SignalConnectorKey, HTMLElement | null>>({
     priorities: null,
     changes: null,
     anomalies: null,
     stable: null,
   });
 
+  const isStable = briefing.scenario === 'stable';
+  const isFolding = isStartingTransition || isBriefingActive;
+  const showBriefing = Boolean(children) && isBriefingActive;
+  const streamsEnabled = !reduceMotion && !isFolding;
+
   const { connectors, stageSize, remeasure } = useSignalConnectors(
     stageRef,
     coreRef,
     signalRefs,
-    !reduce,
+    streamsEnabled,
   );
 
-  const sentenceBreak = briefing.summarySentence.indexOf('.');
-  const summaryLead = sentenceBreak >= 0
-    ? briefing.summarySentence.slice(0, sentenceBreak + 1)
-    : briefing.summarySentence;
-  const summaryRest = sentenceBreak >= 0
-    ? briefing.summarySentence.slice(sentenceBreak + 1).trim()
-    : '';
-
-  const readMeta = `${briefing.estimatedReadTime} · lectura guiada`;
-
-  const signals: SignalDefinition[] = [
+  const signalCards: Array<{
+    id: SignalConnectorKey;
+    label: string;
+    value: number;
+    detail: string;
+    Icon: typeof Activity;
+    position: string;
+    coreState: FocusCoreState;
+  }> = [
     {
-      key: 'priorities',
+      id: 'priorities',
       label: 'Prioridades',
-      count: briefing.dimensions.prioritiesCount,
-      summary: briefing.dimensions.prioritiesSummary,
-      color: connectorColors.priorities,
-      Icon: AlertCircle,
+      value: briefing.dimensions.prioritiesCount,
+      detail: briefing.dimensions.prioritiesSummary,
+      Icon: Layers3,
+      position: 'top-left',
+      coreState: briefing.dimensions.prioritiesCount ? 'attention' : 'observing',
     },
     {
-      key: 'changes',
+      id: 'changes',
       label: 'Qué cambió',
-      count: briefing.dimensions.changesCount,
-      summary: briefing.dimensions.changesSummary,
-      color: connectorColors.changes,
-      Icon: TrendingUp,
+      value: briefing.dimensions.changesCount,
+      detail: briefing.dimensions.changesSummary,
+      Icon: Database,
+      position: 'bottom-left',
+      coreState: 'change',
     },
     {
-      key: 'anomalies',
-      label: 'Fuera de lo habitual',
-      count: briefing.dimensions.anomaliesCount,
-      summary: briefing.dimensions.anomaliesSummary,
-      color: connectorColors.anomalies,
-      Icon: Activity,
+      id: 'anomalies',
+      label: 'Anomalías',
+      value: briefing.dimensions.anomaliesCount,
+      detail: briefing.dimensions.anomaliesSummary,
+      Icon: Radar,
+      position: 'top-right',
+      coreState: briefing.dimensions.anomaliesCount ? 'analysis' : 'observing',
     },
     {
-      key: 'stable',
-      label: 'Todo lo demás',
-      count: briefing.dimensions.stableCount,
-      summary: briefing.dimensions.stableSummary,
-      color: connectorColors.stable,
-      Icon: Check,
+      id: 'stable',
+      label: 'Estable',
+      value: briefing.dimensions.stableCount,
+      detail: briefing.dimensions.stableSummary,
+      Icon: ShieldCheck,
+      position: 'bottom-right',
+      coreState: 'stable',
     },
   ];
 
-  const getCoreState = (): FocusCoreState => {
-    if (isStartingTransition) return 'critical';
-    if (hoveredNode === 'priorities') return 'critical';
-    if (hoveredNode === 'changes') return 'change';
-    if (hoveredNode === 'anomalies') return 'anomaly';
-    if (hoveredNode === 'stable') return 'stable';
-    if (briefing.scenario === 'stable') return 'stable';
-    if (briefing.scenario === 'high_activity') return 'critical';
-    return 'attention';
+  const activeSignalId = hoveredSignal ?? cycledSignal;
+  const activeSignal = signalCards.find((signal) => signal.id === activeSignalId);
+  const coreState: FocusCoreState = activeSignal?.coreState
+    ?? (isStartingTransition ? 'explaining' : isStable ? 'stable' : 'observing');
+
+  const panoramaCards = signalCards.map((card) => ({
+    ...card,
+    emphasis: card.id === 'priorities' ? !isStable : card.id === 'stable' ? isStable : false,
+  }));
+  const panoramaCtaLabel = isStable ? 'Ver qué cambió' : 'Ver lo prioritario';
+
+  const scrollToBriefingChapter = (id: string) => {
+    const target = document.getElementById(id);
+    const root = scrollRef.current;
+    if (!target || !root) return;
+
+    const rootRect = root.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const top = root.scrollTop + (targetRect.top - rootRect.top) - 8;
+    root.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
   };
 
-  const fade = (delay: number, y = 10) => ({
-    initial: reduce ? { opacity: 1 } : { opacity: 0, y },
-    animate: {
-      opacity: isStartingTransition ? 0 : 1,
-      y: isStartingTransition ? (reduce ? 0 : 6) : 0,
-    },
-    transition: {
-      duration: reduce ? 0.12 : isStartingTransition ? 0.35 : 0.55,
-      delay: reduce || isStartingTransition ? 0 : delay,
-      ease: easeOut,
-    },
+  const reveal = (delay: number, y = 14) => ({
+    initial: reduceMotion ? false : { opacity: 0, y },
+    animate: { opacity: isFolding ? 0 : 1, y: isFolding ? -12 : 0 },
+    transition: { duration: reduceMotion ? 0.01 : 0.55, delay: reduceMotion ? 0 : delay, ease },
   });
+
+  useEffect(() => {
+    if (!isBriefingActive || !showBriefing) return;
+    const timer = window.setTimeout(() => {
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+    }, reduceMotion ? 40 : 280);
+    return () => window.clearTimeout(timer);
+  }, [isBriefingActive, showBriefing, reduceMotion]);
+
+  useEffect(() => {
+    if (isBriefingActive) return;
+    scrollRef.current?.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [isBriefingActive, reduceMotion]);
+
+  useEffect(() => {
+    if (reduceMotion || isFolding || hoveredSignal) {
+      if (hoveredSignal) setCycledSignal(null);
+      return undefined;
+    }
+
+    let index = 0;
+    setCycledSignal(SIGNAL_CYCLE[0]);
+    const timer = window.setInterval(() => {
+      index = (index + 1) % SIGNAL_CYCLE.length;
+      setCycledSignal(SIGNAL_CYCLE[index]);
+    }, 4000);
+
+    return () => window.clearInterval(timer);
+  }, [reduceMotion, isFolding, hoveredSignal]);
+
+  useEffect(() => {
+    if (!isFolding) {
+      window.requestAnimationFrame(() => remeasure());
+    }
+  }, [isFolding, remeasure]);
 
   return (
     <section
-      ref={arrivalRef}
+      ref={sectionRef}
       id="focus-arrival-view"
-      className={`focus-arrival relative w-full overflow-hidden px-5 sm:px-10 lg:px-14 ${isStartingTransition ? 'is-departing' : ''}`}
+      className={`iv-cover iv-intro${isStartingTransition ? ' is-departing' : ''}${showBriefing ? ' is-briefing' : ''}`}
+      data-chapter={showBriefing ? undefined : 'panorama'}
     >
-      <div className="focus-arrival__atmosphere pointer-events-none absolute inset-0" aria-hidden="true" />
-      <div className="focus-arrival__stars pointer-events-none absolute inset-0" aria-hidden="true" />
-      <ArrivalCursorField targetRef={arrivalRef} />
-      <motion.div
-        className="focus-arrival__analysis-transition pointer-events-none absolute inset-0"
-        initial={false}
-        animate={{ opacity: isStartingTransition ? 1 : 0 }}
-        transition={{ duration: reduce ? 0.12 : 0.7, ease: easeOut }}
-        aria-hidden="true"
-      />
-      <svg className="focus-arrival__orbits pointer-events-none absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2" viewBox="0 0 1280 780" aria-hidden="true">
-        <ellipse cx="640" cy="390" rx="470" ry="310" />
-        <ellipse cx="640" cy="390" rx="370" ry="246" />
-        <ellipse cx="640" cy="390" rx="270" ry="180" />
-      </svg>
+      <div className="iv-intro__ambient" aria-hidden="true"><i /><i /><i /></div>
+      <ArrivalCursorField targetRef={sectionRef} className="iv-intro__cursor-field" />
 
-      <div className="focus-arrival__shell relative z-10 mx-auto w-full max-w-[1480px]">
-        <div className="focus-arrival__intro mx-auto w-full max-w-5xl text-center">
-          <motion.div
-            className="focus-arrival__greeting inline-flex items-center gap-3 text-[10px] font-medium uppercase tracking-[0.19em] text-sky-400 sm:text-[11px]"
-            {...fade(0.35, 8)}
-          >
-            <span className="focus-processing-dots" aria-hidden="true">
-              <i /><i /><i /><i /><i /><i />
-            </span>
-            <span>{briefing.greeting}</span>
-          </motion.div>
-
-          <motion.h1
-            className="focus-arrival__headline font-['Segoe_UI',sans-serif] font-[480] tracking-[-0.045em]"
-            aria-label={
-              isStableScenario
-                ? 'Revisé tu operación completa. Todo está bajo control.'
-                : 'Revisé tu operación completa. Esto es lo que importa hoy.'
-            }
-          >
-            {isStableScenario ? (
-              <>
-                <motion.span className="block text-slate-400" {...fade(0.5, 12)}>
-                  Revisé tu operación completa.
-                </motion.span>
-                <motion.span className="mt-0.5 block text-white" {...fade(0.65, 12)}>
-                  Todo está <span className="focus-arrival__stable-word">bajo control.</span>
-                </motion.span>
-              </>
-            ) : (
-              <>
-                <motion.span className="block text-slate-400" {...fade(0.5, 12)}>
-                  Revisé tu operación completa.
-                </motion.span>
-                <motion.span className="mt-0.5 block text-white" {...fade(0.65, 12)}>
-                  Esto es lo que <span className="focus-arrival__gradient-word">importa</span> hoy.
-                </motion.span>
-              </>
-            )}
-          </motion.h1>
-
-          <motion.p className="focus-arrival__summary mx-auto max-w-2xl font-light text-slate-400" {...fade(0.8, 10)}>
-            <span className="block">{summaryLead}</span>
-            {summaryRest && <span className="block">{summaryRest}</span>}
-          </motion.p>
-        </div>
-
-        <div ref={stageRef} className="focus-orbit-stage relative w-full">
-          <motion.div
-            className="focus-orbit-stage__glow pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-            initial={reduce ? false : { opacity: 0, scale: 0.7 }}
-            animate={{
-              opacity: isStartingTransition ? 0.55 : 1,
-              scale: isStartingTransition ? 0.88 : 1,
-            }}
-            transition={{ duration: reduce ? 0.12 : isStartingTransition ? 0.45 : 0.7, delay: reduce || isStartingTransition ? 0 : 0.9, ease: easeOut }}
-            aria-hidden="true"
-          />
-
-          {stageSize.width > 0 && connectors.length > 0 && (
-            <svg
-              className="focus-signal-connectors pointer-events-none absolute inset-0 hidden h-full w-full lg:block"
-              viewBox={`0 0 ${stageSize.width} ${stageSize.height}`}
-              fill="none"
-              aria-hidden="true"
+      <div className="iv-intro__frame">
+        {showBriefing ? (
+          header
+        ) : (
+          <nav className="iv-intro-nav" aria-label="Navegación de introducción">
+            <button
+              type="button"
+              className="iv-intro-brand"
+              aria-label="FOCUS, inicio"
+              onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })}
             >
-              <defs>
-                {connectors.map(({ key, start, end }) => {
-                  const c = connectorColors[key];
-                  return (
-                    <linearGradient
-                      key={`grad-${key}`}
-                      id={`focus-stream-${key}`}
-                      gradientUnits="userSpaceOnUse"
-                      x1={start.x}
-                      y1={start.y}
-                      x2={end.x}
-                      y2={end.y}
-                    >
-                      <stop offset="0%" stopColor={c} stopOpacity="0.14" />
-                      <stop offset="55%" stopColor={c} stopOpacity="0.24" />
-                      <stop offset="100%" stopColor={c} stopOpacity="0.42" />
-                    </linearGradient>
-                  );
-                })}
-              </defs>
+              <span><i /><b>F</b></span>
+              <strong>FOCUS</strong>
+            </button>
 
-              {connectors.map((connector, index) => {
-                const key = connector.key;
-                const isActive = hoveredNode === key;
-                const color = connectorColors[key];
+            <div className="iv-intro-nav__links" aria-hidden="true">
+              <span className="is-active">Inicio</span>
+              <span>Briefing</span>
+              <span>Señales</span>
+              <span>Contexto</span>
+            </div>
+
+            <div className="iv-intro-nav__actions">
+              {onOpenDemo && (
+                <button
+                  type="button"
+                  className="iv-intro-nav__tool"
+                  onClick={onOpenDemo}
+                  aria-label="Abrir escenarios de demostración"
+                  title="Escenario y perspectiva"
+                >
+                  <Settings2 aria-hidden="true" />
+                </button>
+              )}
+              <button
+                id="btn-start-briefing"
+                type="button"
+                className="iv-intro-nav__cta"
+                onClick={onStartBriefing}
+                disabled={isStartingTransition || isBriefingActive}
+              >
+                <span>{isStartingTransition ? 'Abriendo briefing' : 'Iniciar briefing'}</span>
+                <ArrowRight aria-hidden="true" />
+              </button>
+            </div>
+          </nav>
+        )}
+
+        <div
+          id="iv-intro-scroll"
+          ref={scrollRef}
+          className={`iv-intro__scroll${showBriefing ? ' is-active' : ''}`}
+        >
+          <div
+            id="section-chapter-panorama"
+            className={`iv-intro__hero${isFolding ? ' is-collapsed' : ''}`}
+            data-chapter={showBriefing ? undefined : 'panorama'}
+            aria-hidden={isFolding}
+          >
+            <div className="iv-intro__hero-copy">
+              <motion.div className="iv-intro__eyebrow" {...reveal(0.18, 8)}>
+                <span />
+                {briefing.greeting}
+              </motion.div>
+              <motion.h1
+                {...reveal(0.28, 18)}
+                aria-label={
+                  isStable
+                    ? 'Revisé tu operación completa. Todo está bajo control.'
+                    : 'Revisé tu operación completa. Esto es lo que importa hoy.'
+                }
+              >
+                {isStable ? (
+                  <>
+                    Revisé tu operación completa.<br />
+                    Todo está <span>bajo control.</span>
+                  </>
+                ) : (
+                  <>
+                    Revisé tu operación completa.<br />
+                    Esto es lo que <span>importa</span> hoy.
+                  </>
+                )}
+              </motion.h1>
+              <motion.p {...reveal(0.38, 12)}>
+                {briefing.summarySentence}
+              </motion.p>
+            </div>
+
+            <div ref={stageRef} className="iv-intro-stage">
+              <div className="iv-intro-stage__glow" aria-hidden="true" />
+
+              <svg className="iv-intro-stage__orbits" viewBox="0 0 920 470" aria-hidden="true">
+                <ellipse className="is-a" cx="460" cy="258" rx="262" ry="105" />
+                <ellipse className="is-b" cx="460" cy="258" rx="300" ry="125" transform="rotate(-10 460 258)" />
+                <ellipse className="is-c" cx="460" cy="258" rx="222" ry="188" transform="rotate(28 460 258)" />
+                <path className="is-stream" d="M92 286 C240 226 302 244 361 258" />
+                <path className="is-stream" d="M828 286 C680 226 618 244 559 258" />
+                <circle className="is-node" cx="198" cy="248" r="2.2" />
+                <circle className="is-node" cx="722" cy="248" r="2.2" />
+                <circle className="is-node" cx="460" cy="148" r="1.8" />
+              </svg>
+
+              {stageSize.width > 0 && connectors.length > 0 && (
+                <svg
+                  className="iv-intro-streams"
+                  viewBox={`0 0 ${stageSize.width} ${stageSize.height}`}
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <defs>
+                    {connectors.map(({ key, start, end }) => {
+                      const color = connectorColors[key];
+                      return (
+                        <linearGradient
+                          key={`stream-grad-${key}`}
+                          id={`iv-stream-${key}`}
+                          gradientUnits="userSpaceOnUse"
+                          x1={start.x}
+                          y1={start.y}
+                          x2={end.x}
+                          y2={end.y}
+                        >
+                          <stop offset="0%" stopColor={color} stopOpacity="0.12" />
+                          <stop offset="55%" stopColor={color} stopOpacity="0.28" />
+                          <stop offset="100%" stopColor={color} stopOpacity="0.5" />
+                        </linearGradient>
+                      );
+                    })}
+                  </defs>
+                  {connectors.map((connector) => {
+                    const key = connector.key;
+                    const isLive = activeSignalId === key;
+                    const color = connectorColors[key];
+                    return (
+                      <g key={key} className={isLive ? 'is-live' : ''}>
+                        <path
+                          d={connector.path}
+                          stroke={isLive ? color : `url(#iv-stream-${key})`}
+                          strokeWidth={isLive ? 1.25 : 0.9}
+                          strokeLinecap="round"
+                          opacity={isLive ? 0.95 : 0.72}
+                        />
+                        {!reduceMotion && (
+                          <circle r={isLive ? 2.8 : 2.2} fill={color} opacity="0">
+                            <animate
+                              attributeName="opacity"
+                              values="0;0.95;0.95;0;0"
+                              keyTimes="0;0.04;0.2;0.24;1"
+                              dur={connector.cycleDur}
+                              begin={connector.pulseBegin}
+                              repeatCount="indefinite"
+                            />
+                            <animateMotion
+                              path={connector.path}
+                              dur={connector.cycleDur}
+                              begin={connector.pulseBegin}
+                              repeatCount="indefinite"
+                              keyTimes="0;0.22;1"
+                              keyPoints="0;1;1"
+                              calcMode="linear"
+                            />
+                          </circle>
+                        )}
+                      </g>
+                    );
+                  })}
+                </svg>
+              )}
+
+              <motion.div
+                id="iv-intro-core"
+                ref={coreRef}
+                className={`iv-intro-core${activeSignalId ? ' is-listening' : ''}`}
+                tabIndex={isFolding ? -1 : 0}
+                aria-label={`Núcleo interactivo de FOCUS. Estado: ${activeSignal?.label ?? (isStable ? 'Operación estable' : 'Observando la operación')}`}
+                initial={reduceMotion ? false : { opacity: 0, scale: 0.8 }}
+                animate={{ opacity: isFolding ? 0 : 1, scale: isFolding ? 0.86 : 1 }}
+                transition={{ duration: reduceMotion ? 0.01 : 0.65, delay: reduceMotion ? 0 : 0.42, ease }}
+              >
+                <FocusCore size="hero" state={coreState} interactive={!isFolding} variant="particle" markStyle="letter" />
+                <div className="iv-intro-core__caption">
+                  <span><i /> Analizando en vivo</span>
+                  <strong>{activeSignal ? activeSignal.label : 'FOCUS CORE'}</strong>
+                </div>
+              </motion.div>
+
+              {signalCards.map(({ id, label, value, detail, Icon, position }, index) => {
+                const isActive = activeSignalId === id;
                 return (
-                  <g key={key} className={isActive ? 'is-active' : ''}>
-                    <motion.path
-                      d={connector.path}
-                      stroke={isActive ? color : `url(#focus-stream-${key})`}
-                      strokeWidth={isActive ? 1.15 : 0.85}
-                      strokeLinecap="round"
-                      initial={reduce ? false : { pathLength: 0, opacity: 0 }}
-                      animate={{
-                        pathLength: isStartingTransition ? 0 : 1,
-                        opacity: isStartingTransition ? 0 : isActive ? 0.95 : 0.78,
-                      }}
-                      transition={{
-                        duration: reduce ? 0.12 : isStartingTransition ? 0.4 : 0.7,
-                        delay: reduce || isStartingTransition ? 0 : 1.5 + index * 0.05,
-                        ease: easeOut,
-                      }}
-                    />
-                    <motion.circle
-                      cx={connector.start.x}
-                      cy={connector.start.y}
-                      r={isActive ? 3 : 2.4}
-                      fill={color}
-                      initial={reduce ? false : { opacity: 0 }}
-                      animate={{ opacity: isStartingTransition ? 0 : isActive ? 0.95 : 0.5 }}
-                      transition={{ delay: reduce || isStartingTransition ? 0 : 1.55 + index * 0.05, duration: 0.4 }}
-                    />
-                    <motion.circle
-                      cx={connector.end.x}
-                      cy={connector.end.y}
-                      r={isActive ? 3.6 : 2.8}
-                      fill={color}
-                      initial={reduce ? false : { opacity: 0 }}
-                      animate={{ opacity: isStartingTransition ? 0 : isActive ? 1 : 0.75 }}
-                      transition={{ delay: reduce || isStartingTransition ? 0 : 1.55 + index * 0.05, duration: 0.4 }}
-                      style={isActive ? { filter: `drop-shadow(0 0 4px ${color})` } : undefined}
-                    />
-                    {!reduce && (
-                      <circle r="2.4" fill={color} opacity="0">
-                        <animate
-                          attributeName="opacity"
-                          values="0;0.9;0.9;0;0"
-                          keyTimes="0;0.04;0.2;0.24;1"
-                          dur={connector.cycleDur}
-                          begin={connector.pulseBegin}
-                          repeatCount="indefinite"
-                        />
-                        <animateMotion
-                          path={connector.path}
-                          dur={connector.cycleDur}
-                          begin={connector.pulseBegin}
-                          repeatCount="indefinite"
-                          keyTimes="0;0.22;1"
-                          keyPoints="0;1;1"
-                          calcMode="linear"
-                        />
-                      </circle>
-                    )}
-                  </g>
+                  <motion.article
+                    key={id}
+                    ref={(node) => {
+                      signalRefs.current[id] = node;
+                      if (node) remeasure();
+                    }}
+                    className={`iv-intro-signal iv-intro-signal--${position}${isActive ? ' is-active' : ''}`}
+                    onMouseEnter={() => !isFolding && setHoveredSignal(id)}
+                    onMouseLeave={() => setHoveredSignal(null)}
+                    onFocus={() => !isFolding && setHoveredSignal(id)}
+                    onBlur={() => setHoveredSignal(null)}
+                    tabIndex={isFolding ? -1 : 0}
+                    initial={reduceMotion ? false : { opacity: 0, x: position.includes('left') ? -18 : 18, y: 10 }}
+                    animate={{ opacity: isFolding ? 0 : 1, x: 0, y: isFolding ? 12 : 0 }}
+                    transition={{ duration: reduceMotion ? 0.01 : 0.55, delay: reduceMotion ? 0 : 0.56 + index * 0.08, ease }}
+                  >
+                    <div className="iv-intro-signal__top">
+                      <span className="iv-intro-signal__icon" aria-hidden="true"><Icon /></span>
+                      <span className="iv-intro-signal__label">{label}</span>
+                    </div>
+                    <div className="iv-intro-signal__metric" aria-label={`${value} ${label}`}>{value}</div>
+                    <p className="iv-intro-signal__detail">{detail}</p>
+                  </motion.article>
                 );
               })}
-            </svg>
-          )}
+            </div>
 
-          <div ref={coreRef} className="focus-orbit-stage__core">
-            <motion.div
-              className="z-10 cursor-default"
-              initial={reduce ? false : { opacity: 0, scale: 0.82 }}
-              animate={{
-                opacity: isStartingTransition ? 0.42 : 1,
-                scale: isStartingTransition ? 0.74 : 1,
-                y: isStartingTransition ? 28 : 0,
-                filter: isStartingTransition ? 'saturate(1.35) blur(1px)' : 'saturate(1) blur(0px)',
-              }}
-              transition={{
-                duration: reduce ? 0.12 : isStartingTransition ? 0.82 : 0.75,
-                delay: reduce || isStartingTransition ? 0 : 1.0,
-                ease: easeOut,
-              }}
-              role="img"
-              aria-label="Núcleo FOCUS observando la operación"
-            >
-              <FocusCore size="hero" state={getCoreState()} variant="particle" markStyle="letter" />
+            <motion.div className="iv-intro-trust" {...reveal(0.82, 16)}>
+              <div className="iv-intro-trust__person">
+                <span className="iv-intro-trust__avatars" aria-hidden="true"><i>A</i><i>V</i><i>S</i></span>
+                <p><strong>Briefing preparado</strong><small>para {briefing.userName}</small></p>
+              </div>
+              <div className="iv-intro-trust__metric"><strong>100%</strong><small>Operación analizada</small></div>
+              <div className="iv-intro-trust__metric"><strong>{briefing.detectedCount}</strong><small>Señales clave</small></div>
+              <div className="iv-intro-trust__metric"><strong>14</strong><small>Fuentes conectadas</small></div>
+              <div className="iv-intro-trust__metric"><strong className="is-live">24/7</strong><small>Monitoreo activo</small></div>
+              <span className="iv-intro-trust__ready"><Check aria-hidden="true" /> Contexto listo</span>
+            </motion.div>
+
+            <motion.div className="iv-intro__cta-meta" {...reveal(0.9, 8)}>
+              <i />
+              <span>{briefing.estimatedReadTime} · lectura guiada</span>
             </motion.div>
           </div>
 
-          <div className="focus-signal-list relative z-20">
-            {signals.map(({ key, label, count, summary, color, Icon }, index) => (
-              <motion.div
-                key={key}
-                id={`node-${key}`}
-                ref={(node) => {
-                  signalRefs.current[key] = node;
-                  if (node) remeasure();
-                }}
-                className={`focus-signal focus-signal--${key} group ${hoveredNode === key ? 'is-active' : ''}`}
-                style={{ '--signal-color': color } as React.CSSProperties}
-                onMouseEnter={() => setHoveredNode(key)}
-                onMouseLeave={() => setHoveredNode(null)}
-                {...fade(1.6 + index * 0.08, 0)}
-              >
-                <span className="focus-signal__icon" aria-hidden="true">
-                  <Icon className="focus-signal__glyph" strokeWidth={1.8} />
-                </span>
-                <span className="focus-signal__copy">
-                  <span className="focus-signal__heading">
-                    <span>{label}</span>
-                    <span className="focus-signal__count">{count}</span>
-                  </span>
-                  <span className="focus-signal__summary">{summary}</span>
-                </span>
-              </motion.div>
-            ))}
-          </div>
-        </div>
+          {showBriefing ? (
+            <IntroScrollContext.Provider value={scrollRef}>
+              <div className="iv-journey focus-narrative" aria-label="Briefing guiado de FOCUS">
+                <BriefingJourneyAmbient />
+                <section
+                  id="briefing-panorama-gate"
+                  className="iv-scene iv-panorama"
+                  data-chapter="panorama"
+                >
+                  <div className="iv-shell iv-panorama__layout">
+                    <div className="iv-panorama__main">
+                      <div className="iv-panorama__intro">
+                        <div className="iv-scene-label is-light">
+                          <span>00 / 07</span>
+                          <i />
+                          <strong>Panorama general</strong>
+                        </div>
 
-        <motion.div className="focus-arrival__cta relative z-20 flex flex-col items-center text-center" {...fade(1.9, 10)}>
-          <button id="btn-start-briefing" type="button" onClick={onStartBriefing} disabled={isStartingTransition} className="focus-primary-cta group">
-            <span>Iniciar briefing</span>
-            <ArrowRight className="h-4 w-4 transition-transform duration-300" />
-          </button>
-          <motion.span className="focus-arrival__cta-meta" {...fade(1.95, 6)}>
-            {readMeta}
-          </motion.span>
-          <motion.span
-            className="focus-scroll-cue flex flex-col items-center text-sky-400/70"
-            aria-hidden="true"
-            {...fade(2.0, 4)}
-          >
-            <span className="mb-0.5 tracking-[0.28em] text-[9px] opacity-70">•••••</span>
-            <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </motion.span>
-        </motion.div>
+                        <motion.div
+                          className="iv-panorama__headline"
+                          initial={reduceMotion ? false : { opacity: 0, y: 22 }}
+                          whileInView={{ opacity: 1, y: 0 }}
+                          viewport={{ once: true, amount: 0.4 }}
+                          transition={{ duration: 0.75, ease }}
+                        >
+                          <h2>
+                            FOCUS redujo tu operación<br />
+                            a <span>cuatro señales claras.</span>
+                          </h2>
+                          <p className="iv-panorama__lede">{briefing.summarySentence}</p>
+                        </motion.div>
+
+                        <div className="iv-panorama__actions">
+                          <button
+                            type="button"
+                            className="iv-continue is-light"
+                            onClick={() => scrollToBriefingChapter('section-chapter-priority')}
+                          >
+                            <span>{panoramaCtaLabel}</span>
+                            <ArrowRight aria-hidden="true" />
+                          </button>
+                          <div className="iv-panorama__meta">
+                            <span><Check aria-hidden="true" /><strong>100%</strong> analizada</span>
+                            <span><Clock3 aria-hidden="true" /><strong>{briefing.estimatedReadTime}</strong></span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="iv-panorama__grid" role="list">
+                        {panoramaCards.map(({ id, label, value, detail, Icon, emphasis }, index) => (
+                          <motion.article
+                            key={id}
+                            className={`iv-panorama-card${emphasis ? ' is-emphasis' : ''}`}
+                            role="listitem"
+                            aria-label={`${label}: ${value}. ${detail}`}
+                            initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, amount: 0.25 }}
+                            transition={{ duration: 0.55, delay: index * 0.06, ease }}
+                          >
+                            <div className="iv-panorama-card__orb" aria-hidden="true" />
+                            <div className="iv-panorama-card__top">
+                              <span className="iv-panorama-card__icon"><Icon aria-hidden="true" /></span>
+                              <h3>{label}</h3>
+                            </div>
+                            <p className="iv-panorama-card__detail">{detail}</p>
+                          </motion.article>
+                        ))}
+                      </div>
+                    </div>
+
+                    <motion.aside
+                      className="iv-panorama__stage"
+                      initial={reduceMotion ? false : { opacity: 0, x: 28, scale: 0.98 }}
+                      whileInView={{ opacity: 1, x: 0, scale: 1 }}
+                      viewport={{ once: true, amount: 0.2 }}
+                      transition={{ duration: 0.9, ease }}
+                      aria-hidden="true"
+                    >
+                      <div className="iv-panorama__stage-glow" />
+                      <div className="iv-panorama__stage-frame">
+                        <img src={focusObservatory} alt="" />
+                      </div>
+                      <span className="iv-panorama__live"><i /> FOCUS / LIVE</span>
+                    </motion.aside>
+                  </div>
+                </section>
+                {children}
+              </div>
+            </IntroScrollContext.Provider>
+          ) : null}
+        </div>
       </div>
     </section>
   );

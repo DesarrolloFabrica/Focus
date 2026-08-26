@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useReducedMotion } from 'motion/react';
 import { getFocusBriefing } from '../../data/mockData';
 import { FocusPerspective, FocusScenario } from '../../types/focus';
 import { ActionModal } from '../actions/ActionModal';
 import { AskPanel } from '../ask/AskPanel';
 import { NarrativeTransition } from '../briefing/NarrativeTransition';
-import { FocusCore } from '../core/FocusCore';
 import { DemoMenu } from '../demo/DemoMenu';
 import { InvestigationView } from '../investigation/InvestigationView';
 import { Header } from '../layout/Header';
@@ -22,7 +21,7 @@ import { WhyDrawer } from '../why/WhyDrawer';
 type ExperiencePhase = 'arrival' | 'briefing' | 'complete' | 'investigation';
 
 const chapterTargets = [
-  'focus-arrival-view',
+  'briefing-panorama-gate',
   'section-chapter-priority',
   'section-chapter-why',
   'section-chapter-changes',
@@ -42,14 +41,24 @@ export const FocusExperience: React.FC = () => {
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isDemoMenuOpen, setIsDemoMenuOpen] = useState(false);
   const reduceMotion = !!useReducedMotion();
+  const scrollRootRef = useRef<HTMLElement | null>(null);
 
   const briefing = useMemo(() => getFocusBriefing(perspective, scenario), [perspective, scenario]);
   const isBriefingVisible = phase === 'briefing' || phase === 'complete';
   const explorationIsUnlocked = phase === 'complete' || phase === 'investigation';
 
+  const getScrollRoot = () => document.getElementById('iv-intro-scroll');
+
   const scrollTo = (id: string, delay = 0) => {
     window.setTimeout(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      const target = document.getElementById(id);
+      const root = getScrollRoot();
+      if (!target || !root) return;
+
+      const rootRect = root.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const top = root.scrollTop + (targetRect.top - rootRect.top) - 8;
+      root.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
     }, delay);
   };
 
@@ -68,16 +77,18 @@ export const FocusExperience: React.FC = () => {
     if (phase !== 'arrival' || isStartingTransition) return;
     setIsStartingTransition(true);
 
-    const mountDelay = reduceMotion ? 20 : 460;
-    const scrollDelay = reduceMotion ? 30 : 610;
-    const finishDelay = reduceMotion ? 80 : 940;
+    const mountDelay = reduceMotion ? 20 : 320;
+    const finishDelay = reduceMotion ? 80 : 720;
 
     window.setTimeout(() => {
       setPhase('briefing');
-      setActiveStep(1);
+      setActiveStep(0);
     }, mountDelay);
-    scrollTo('section-chapter-priority', scrollDelay);
-    window.setTimeout(() => setIsStartingTransition(false), finishDelay);
+
+    window.setTimeout(() => {
+      getScrollRoot()?.scrollTo({ top: 0, behavior: 'auto' });
+      setIsStartingTransition(false);
+    }, finishDelay);
   };
 
   const handleReset = () => {
@@ -85,7 +96,9 @@ export const FocusExperience: React.FC = () => {
     setPhase('arrival');
     setActiveStep(0);
     setIsStartingTransition(false);
-    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+    window.setTimeout(() => {
+      getScrollRoot()?.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+    }, 40);
   };
 
   const resetWithDataChange = (nextScenario: FocusScenario, nextPerspective: FocusPerspective) => {
@@ -94,55 +107,68 @@ export const FocusExperience: React.FC = () => {
     setPhase('arrival');
     setActiveStep(0);
     closeOverlays();
-    window.scrollTo({ top: 0, behavior: 'auto' });
+    getScrollRoot()?.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   useEffect(() => {
     if (!isBriefingVisible) return;
 
-    const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-chapter]'));
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (!visible) return;
+    const root = getScrollRoot();
+    if (!root) return;
 
-        const chapter = (visible.target as HTMLElement).dataset.chapter;
-        const index = briefingSteps.findIndex((step) => step.id === chapter);
-        if (index < 0) return;
-        setActiveStep(index);
-        if (chapter === 'summary') setPhase((current) => current === 'briefing' ? 'complete' : current);
-      },
-      { threshold: [0.08, 0.18, 0.32], rootMargin: '-18% 0px -38% 0px' },
-    );
+    scrollRootRef.current = root;
+    let frameId = 0;
 
-    sections.forEach((section) => observer.observe(section));
-    return () => observer.disconnect();
+    const syncActiveChapter = () => {
+      const sections = Array.from(root.querySelectorAll<HTMLElement>('[data-chapter]'));
+      if (!sections.length) return;
+
+      const rootRect = root.getBoundingClientRect();
+      const focusY = rootRect.top + rootRect.height * 0.34;
+
+      let bestChapter: string | null = null;
+      let bestDistance = Number.POSITIVE_INFINITY;
+
+      sections.forEach((section) => {
+        const rect = section.getBoundingClientRect();
+        if (rect.bottom <= rootRect.top + 12 || rect.top >= rootRect.bottom - 12) return;
+
+        const anchorY = rect.top + Math.min(rect.height * 0.28, 120);
+        const distance = Math.abs(anchorY - focusY);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestChapter = section.dataset.chapter ?? null;
+        }
+      });
+
+      if (!bestChapter) return;
+
+      const index = briefingSteps.findIndex((step) => step.id === bestChapter);
+      if (index < 0) return;
+
+      setActiveStep(index);
+      if (bestChapter === 'summary') {
+        setPhase((current) => (current === 'briefing' ? 'complete' : current));
+      }
+    };
+
+    const onScroll = () => {
+      cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(syncActiveChapter);
+    };
+
+    root.addEventListener('scroll', onScroll, { passive: true });
+    window.requestAnimationFrame(syncActiveChapter);
+
+    return () => {
+      root.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frameId);
+    };
   }, [isBriefingVisible]);
 
   return (
-    <div id="focus-app-root" className={`focus-experience phase-${phase}${isStartingTransition ? ' is-transitioning' : ''}`}>
+    <div id="focus-app-root" className={`focus-experience iv-app phase-${phase}${isStartingTransition ? ' is-transitioning' : ''}`}>
       <div className="focus-atmosphere" data-active-chapter={briefingSteps[activeStep]?.id ?? 'panorama'} aria-hidden="true" />
-
-      {phase !== 'investigation' && (
-        <Header
-          onOpenDemoMenu={() => setIsDemoMenuOpen(true)}
-          scenario={scenario}
-          perspective={perspective}
-          onResetToArrival={handleReset}
-          currentSection={briefingSteps[activeStep]?.name}
-          isBriefingActive={isBriefingVisible}
-        />
-      )}
-
-      <ProgressBar
-        currentStep={activeStep}
-        stepLabel={briefingSteps[activeStep]?.name}
-        isVisible={isBriefingVisible}
-        isComplete={phase === 'complete'}
-        onSelectStep={handleSelectChapter}
-      />
 
       <main>
         {phase === 'investigation' ? (
@@ -157,22 +183,45 @@ export const FocusExperience: React.FC = () => {
             onOpenActionModal={() => setIsActionModalOpen(true)}
           />
         ) : (
-          <>
-            <ArrivalSection briefing={briefing} onStartBriefing={handleStartBriefing} isStartingTransition={isStartingTransition} />
+          <ArrivalSection
+            briefing={briefing}
+            onStartBriefing={handleStartBriefing}
+            isStartingTransition={isStartingTransition}
+            isBriefingActive={isBriefingVisible}
+            onOpenDemo={() => setIsDemoMenuOpen(true)}
+            header={
+              isBriefingVisible ? (
+                <div className="iv-briefing-chrome">
+                  <Header
+                    onOpenDemoMenu={() => setIsDemoMenuOpen(true)}
+                    scenario={scenario}
+                    perspective={perspective}
+                    onResetToArrival={handleReset}
+                    currentSection={briefingSteps[activeStep]?.name}
+                    isBriefingActive
+                    embedded
+                  />
+                  <ProgressBar
+                    currentStep={activeStep}
+                    stepLabel={briefingSteps[activeStep]?.name}
+                    isVisible
+                    isComplete={phase === 'complete'}
+                    onSelectStep={handleSelectChapter}
+                    embedded
+                  />
+                </div>
+              ) : null
+            }
+          >
+            {isBriefingVisible ? (
+              <>
+                <PrioritySection priority={briefing.mainPriority} onContinue={() => scrollTo('section-chapter-why')} />
 
-            {isBriefingVisible && (
-              <div className="focus-narrative" aria-label="Briefing guiado de FOCUS">
-                <PrioritySection priority={briefing.mainPriority} onContinue={() => scrollTo('transition-explainability')} />
-
-                <NarrativeTransition
-                  id="transition-explainability"
-                  eyebrow="FOCUS / EXPLICABILIDAD"
-                  firstLine="Un dato aislado no convierte algo en prioridad."
-                  secondLine="Es la coincidencia entre varias señales."
-                  variant="converge"
+                <WhyItMattersSection
+                  signals={briefing.signals}
+                  conclusion={briefing.mainPriority.explanation.summaryText}
+                  onContinue={() => scrollTo('transition-to-changes')}
                 />
-
-                <WhyItMattersSection signals={briefing.signals} conclusion={briefing.mainPriority.explanation.summaryText} onContinue={() => scrollTo('transition-to-changes')} />
 
                 <NarrativeTransition
                   id="transition-to-changes"
@@ -181,7 +230,15 @@ export const FocusExperience: React.FC = () => {
                   variant="timeline"
                 />
 
-                <WhatChangedSection changes={briefing.changes} onContinue={() => scrollTo('section-chapter-anomaly')} />
+                <WhatChangedSection changes={briefing.changes} onContinue={() => scrollTo('transition-to-anomaly')} />
+
+                <NarrativeTransition
+                  id="transition-to-anomaly"
+                  firstLine="Entre lo que cambió, una señal se comporta distinto."
+                  secondLine="Eso merece una mirada aparte."
+                  variant="anomaly-bridge"
+                />
+
                 <AnomalySection anomaly={briefing.anomaly} onContinue={() => scrollTo('transition-to-coverage')} />
 
                 <NarrativeTransition
@@ -209,25 +266,30 @@ export const FocusExperience: React.FC = () => {
                   onFinish={handleReset}
                   onReset={handleReset}
                 />
-              </div>
-            )}
-          </>
+              </>
+            ) : null}
+          </ArrivalSection>
         )}
       </main>
 
-      <AnimatePresence>
-        {isStartingTransition && (
-          <motion.div className="focus-briefing-transition" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduceMotion ? 0.01 : 0.24 }} aria-live="polite">
-            <div className="focus-briefing-transition__iris" aria-hidden="true"><FocusCore size="medium" state="explaining" variant="particle" markStyle="letter" /></div>
-            <div className="focus-briefing-transition__beam" aria-hidden="true" />
-            <div className="focus-briefing-transition__copy"><span>01 · PRIORIDAD</span><strong>Preparando tu briefing</strong><i><b /><b /><b /><b /><b /></i></div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {explorationIsUnlocked && <AskPanel isOpen={isAskPanelOpen} onClose={() => setIsAskPanelOpen(false)} onSelectAction={(action) => action === 'focus_cases' && setIsActionModalOpen(true)} />}
-      {phase === 'investigation' && <WhyDrawer isOpen={isWhyDrawerOpen} onClose={() => setIsWhyDrawerOpen(false)} explanation={briefing.mainPriority.explanation} priorityTitle={briefing.mainPriority.title} />}
-      {explorationIsUnlocked && <ActionModal isOpen={isActionModalOpen} onClose={() => setIsActionModalOpen(false)} cases={briefing.mainPriority.keyCases} />}
+      {explorationIsUnlocked && (
+        <AskPanel
+          isOpen={isAskPanelOpen}
+          onClose={() => setIsAskPanelOpen(false)}
+          onSelectAction={(action) => action === 'focus_cases' && setIsActionModalOpen(true)}
+        />
+      )}
+      {phase === 'investigation' && (
+        <WhyDrawer
+          isOpen={isWhyDrawerOpen}
+          onClose={() => setIsWhyDrawerOpen(false)}
+          explanation={briefing.mainPriority.explanation}
+          priorityTitle={briefing.mainPriority.title}
+        />
+      )}
+      {explorationIsUnlocked && (
+        <ActionModal isOpen={isActionModalOpen} onClose={() => setIsActionModalOpen(false)} cases={briefing.mainPriority.keyCases} />
+      )}
 
       <DemoMenu
         isOpen={isDemoMenuOpen}
