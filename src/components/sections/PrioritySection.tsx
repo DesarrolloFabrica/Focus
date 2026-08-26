@@ -3,7 +3,6 @@ import { motion, useReducedMotion } from 'motion/react';
 import {
   Activity,
   ArrowRight,
-  CircleHelp,
   Clock3,
   FileText,
   ShieldCheck,
@@ -19,8 +18,7 @@ import { FocusCore } from '../core/FocusCore';
 
 interface PrioritySectionProps {
   priority: FocusPriority;
-  onInvestigate: () => void;
-  onOpenWhy: () => void;
+  onContinue: () => void;
 }
 
 interface ChartPoint {
@@ -90,7 +88,7 @@ const smoothPath = (points: ChartPoint[]) => {
   return path;
 };
 
-export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onInvestigate, onOpenWhy }) => {
+export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onContinue }) => {
   const reduce = !!useReducedMotion();
   const visualization = priority.visualization ?? fallbackVisualization(priority);
   const [activePoint, setActivePoint] = useState(visualization.trendPoints.length - 1);
@@ -144,7 +142,7 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onIn
   };
 
   return (
-    <section id="section-chapter-priority" className="briefing-chapter briefing-chapter--priority">
+    <section id="section-chapter-priority" className="briefing-chapter briefing-chapter--priority narrative-chapter" data-chapter="priority">
       <div className="briefing-chapter__inner priority-immersive">
         <ChapterEyebrow number="01 / 05" label="Prioridad" tone="coral" />
 
@@ -362,11 +360,8 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onIn
           viewport={{ once: true }}
           transition={{ duration: 0.55, delay: 0.3 }}
         >
-          <button id="btn-investigate-priority" className="briefing-action briefing-action--primary" onClick={onInvestigate}>
-            Investigar prioridad <ArrowRight aria-hidden="true" />
-          </button>
-          <button id="btn-why-priority" className="briefing-action briefing-action--quiet" onClick={onOpenWhy}>
-            <CircleHelp aria-hidden="true" /> ¿Por qué FOCUS la priorizó?
+          <button id="btn-continue-priority" className="briefing-action briefing-action--primary" onClick={onContinue}>
+            Continuar · Entender por qué <ArrowRight aria-hidden="true" />
           </button>
         </motion.div>
       </div>

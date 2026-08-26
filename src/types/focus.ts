@@ -55,6 +55,58 @@ export interface FocusPriorityVisualization {
   affectedAreas: FocusPriorityArea[];
 }
 
+export type FocusSemanticType =
+  | 'impact'
+  | 'deterioration'
+  | 'persistence'
+  | 'context'
+  | 'positive'
+  | 'neutral';
+
+export interface FocusSignal {
+  id: string;
+  label: string;
+  value: string;
+  description: string;
+  semanticType: FocusSemanticType;
+  emphasis?: 'primary' | 'secondary' | 'quiet';
+  optionalVisual?: 'field' | 'pulse' | 'trend' | 'relation';
+}
+
+export interface FocusStateSnapshot {
+  label: string;
+  value?: string;
+  description: string;
+}
+
+export type FocusChangeStatus = 'new' | 'threshold' | 'resolved' | 'escalation';
+export type FocusChangeImportance = 'low' | 'medium' | 'high';
+
+export interface FocusChangeEvent {
+  id: string;
+  timeLabel: string;
+  title: string;
+  description: string;
+  status: FocusChangeStatus;
+  importance: FocusChangeImportance;
+}
+
+export interface FocusEntity {
+  id: string;
+  label: string;
+  state: string;
+  description?: string;
+  metric?: string;
+}
+
+export interface FocusSummaryAction {
+  id: string;
+  level: 'act' | 'watch' | 'stable';
+  label: string;
+  title: string;
+  description: string;
+}
+
 export interface FocusPriority {
   id: string;
   code: string;
@@ -109,6 +161,9 @@ export interface FocusChange {
     title: string;
     category: 'new' | 'threshold' | 'resolved' | 'escalation';
   }[];
+  previousState: FocusStateSnapshot;
+  currentState: FocusStateSnapshot;
+  changes: FocusChangeEvent[];
 }
 
 export interface FocusAnomaly {
@@ -121,6 +176,11 @@ export interface FocusAnomaly {
   isCritical: boolean;
   isUnusual: boolean;
   insight: string;
+  value: string;
+  context: string;
+  expectedPath: number[];
+  actualPath: number[];
+  breakpointLabel: string;
 }
 
 export interface FocusStableSummary {
@@ -144,6 +204,9 @@ export interface FocusBriefing {
   changes: FocusChange;
   anomaly: FocusAnomaly;
   stable: FocusStableSummary;
+  signals: FocusSignal[];
+  entities: FocusEntity[];
+  summaryActions: FocusSummaryAction[];
   estimatedReadTime: string;
   completionTime: string;
 }

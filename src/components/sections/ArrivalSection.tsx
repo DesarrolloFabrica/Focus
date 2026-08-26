@@ -314,7 +314,7 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
 
           <div ref={coreRef} className="focus-orbit-stage__core">
             <motion.div
-              className="z-10 cursor-pointer"
+              className="z-10 cursor-default"
               initial={reduce ? false : { opacity: 0, scale: 0.82 }}
               animate={{
                 opacity: isStartingTransition ? 0.42 : 1,
@@ -327,13 +327,8 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
                 delay: reduce || isStartingTransition ? 0 : 1.0,
                 ease: easeOut,
               }}
-              onClick={() => !isStartingTransition && onStartBriefing()}
-              role="button"
-              tabIndex={0}
-              aria-label="Comenzar briefing desde el núcleo FOCUS"
-              onKeyDown={(event) => {
-                if (!isStartingTransition && (event.key === 'Enter' || event.key === ' ')) onStartBriefing();
-              }}
+              role="img"
+              aria-label="Núcleo FOCUS observando la operación"
             >
               <FocusCore size="hero" state={getCoreState()} variant="particle" markStyle="letter" />
             </motion.div>
@@ -371,7 +366,7 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
 
         <motion.div className="focus-arrival__cta relative z-20 flex flex-col items-center text-center" {...fade(1.9, 10)}>
           <button id="btn-start-briefing" type="button" onClick={onStartBriefing} disabled={isStartingTransition} className="focus-primary-cta group">
-            <span>{isStableScenario ? 'Verificar estado' : 'Comenzar briefing'}</span>
+            <span>Iniciar briefing</span>
             <ArrowRight className="h-4 w-4 transition-transform duration-300" />
           </button>
           <motion.span className="focus-arrival__cta-meta" {...fade(1.95, 6)}>

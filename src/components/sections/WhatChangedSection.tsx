@@ -1,110 +1,93 @@
 import React from 'react';
 import { motion, useReducedMotion } from 'motion/react';
+import { ArrowRight, Check, CircleAlert, Sparkles } from 'lucide-react';
 import { FocusChange } from '../../types/focus';
 import { ChapterEyebrow } from '../briefing/ChapterEyebrow';
 
 interface WhatChangedSectionProps {
   changes: FocusChange;
+  onContinue: () => void;
 }
 
-type ChangeNodeState = 'resolved' | 'attention' | 'relevant' | 'noise';
-
-export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes }) => {
+export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes, onContinue }) => {
   const reduce = !!useReducedMotion();
-  const totalNodes = Math.min(changes.newItemsCount, 24);
-  const resolved = Math.min(changes.resolvedItemsCount, totalNodes);
-  const attention = Math.min(changes.pendingItemsCount, Math.max(0, totalNodes - resolved));
-  const relevant = Math.min(changes.relevantChangesCount, Math.max(0, totalNodes - resolved - attention));
-
-  const nodes = Array.from({ length: totalNodes }, (_, index): ChangeNodeState => {
-    if (index < resolved) return 'resolved';
-    if (index < resolved + attention) return 'attention';
-    if (index >= totalNodes - relevant) return 'relevant';
-    return 'noise';
-  });
 
   return (
-    <section id="section-chapter-changes" className="briefing-chapter briefing-chapter--changes">
-      <div className="briefing-chapter__inner">
-        <ChapterEyebrow number="03 / 05" label="Qué cambió" tone="cyan" />
-
-        <motion.div
-          className="changes-heading"
-          initial={reduce ? false : { opacity: 0, y: 18 }}
+    <section id="section-chapter-changes" className="briefing-chapter briefing-chapter--changes narrative-chapter" data-chapter="changes">
+      <div className="briefing-chapter__inner changes-story">
+        <motion.header
+          className="changes-story__heading"
+          initial={reduce ? false : { opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.6 }}
-          transition={{ duration: 0.65 }}
+          viewport={{ once: true, amount: 0.5 }}
+          transition={{ duration: reduce ? 0.01 : 0.7 }}
         >
+          <ChapterEyebrow number="03" label="Cambios" tone="cyan" />
           <p className="briefing-kicker">Tu última visita → Ahora</p>
-          <h2 className="briefing-title">Mucho cambió. Poco merece quedarse.</h2>
-        </motion.div>
+          <h2 className="briefing-title">Desde tu última visita, esto cambió.</h2>
+          <p className="briefing-lede">FOCUS comparó el estado anterior con lo que ocurre ahora.</p>
+        </motion.header>
 
-        <motion.div
-          className="change-filter"
-          initial={reduce ? false : { opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true, amount: 0.35 }}
-          transition={{ duration: 0.65 }}
-        >
-          <div className="change-filter__timeline" aria-hidden="true">
-            <span>Tu última visita</span><i /><span>Ahora</span>
-          </div>
-
-          <div className="change-filter__stage" aria-label={`${changes.newItemsCount} novedades filtradas hasta encontrar ${changes.relevantChangesCount} cambios relevantes`}>
-            {nodes.map((state, index) => (
-              <motion.span
-                key={`${state}-${index}`}
-                className={`change-particle is-${state}`}
-                style={{ '--i': index } as React.CSSProperties}
-                initial={reduce ? false : { opacity: 0, scale: 0.4, x: -32 }}
-                whileInView={
-                  state === 'resolved'
-                    ? { opacity: [0, 0.85, 0], scale: [0.4, 1, 0.3], x: [-32, 0, 30] }
-                    : state === 'noise'
-                      ? { opacity: [0, 0.65, 0.12], scale: [0.4, 1, 0.7], x: [-32, 0, 18] }
-                      : { opacity: 1, scale: state === 'relevant' ? 1.25 : 1, x: 0 }
-                }
-                viewport={{ once: true, amount: 0.45 }}
-                transition={{ duration: reduce ? 0.1 : 1.15, delay: reduce ? 0 : index * 0.035 }}
-              >
-                {state === 'relevant' && <b>{String(index - (totalNodes - relevant) + 1).padStart(2, '0')}</b>}
-              </motion.span>
-            ))}
-            <div className="change-filter__beam" aria-hidden="true" />
-          </div>
-
-          <div className="change-filter__counts">
-            <span><strong>{changes.newItemsCount}</strong> nuevos</span>
-            <span className="is-resolved"><strong>{changes.resolvedItemsCount}</strong> resueltos</span>
-            <span className="is-attention"><strong>{changes.pendingItemsCount}</strong> requieren atención</span>
-            <span className="is-relevant"><strong>{changes.relevantChangesCount}</strong> relevantes</span>
-          </div>
-        </motion.div>
-
-        <div className="change-events">
-          {changes.events.slice(0, 4).map((event, index) => (
-            <motion.div
-              key={`${event.time}-${event.title}`}
-              className={`change-event is-${event.category}`}
-              initial={reduce ? false : { opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.45, delay: 0.08 * index }}
-            >
-              <time>{event.time}</time><i /><p>{event.title}</p>
-            </motion.div>
-          ))}
+        <div className="changes-story__states" aria-label="Comparación de estados">
+          <article>
+            <small>{changes.previousState.label}</small>
+            <strong>{changes.previousState.value}</strong>
+            <p>{changes.previousState.description}</p>
+          </article>
+          <span aria-hidden="true"><i /><ArrowRight /></span>
+          <article className="is-current">
+            <small>{changes.currentState.label}</small>
+            <strong>{changes.currentState.value}</strong>
+            <p>{changes.currentState.description}</p>
+          </article>
         </div>
 
-        <motion.p
-          className="change-conclusion"
-          initial={reduce ? false : { opacity: 0, y: 14 }}
+        <div className="change-timeline" role="list" aria-label="Línea temporal de cambios relevantes">
+          <motion.div
+            className="change-timeline__line"
+            initial={reduce ? false : { scaleX: 0 }}
+            whileInView={{ scaleX: 1 }}
+            viewport={{ once: true, amount: 0.55 }}
+            transition={{ duration: reduce ? 0.01 : 1.05, ease: [0.16, 1, 0.3, 1] }}
+            aria-hidden="true"
+          />
+          <span className="change-timeline__edge is-start">Última visita</span>
+          {changes.changes.map((change, index) => (
+            <motion.article
+              key={change.id}
+              className={`change-timeline__event is-${change.status} is-${change.importance}`}
+              role="listitem"
+              initial={reduce ? false : { opacity: 0, y: 24, scale: 0.98 }}
+              whileInView={{ opacity: change.importance === 'low' ? 0.58 : 1, y: 0, scale: 1 }}
+              viewport={{ once: true, amount: 0.45 }}
+              transition={{ duration: reduce ? 0.01 : 0.5, delay: reduce ? 0 : index * 0.1 }}
+            >
+              <span className="change-timeline__node" aria-hidden="true">
+                {change.status === 'resolved' ? <Check /> : <CircleAlert />}
+              </span>
+              <small>{change.timeLabel}</small>
+              <strong>{change.title}</strong>
+              <p>{change.description}</p>
+              <b>{change.importance === 'high' ? 'Relevante' : change.status === 'resolved' ? 'Resuelto' : 'Contexto'}</b>
+            </motion.article>
+          ))}
+          <span className="change-timeline__edge is-end">Ahora</span>
+        </div>
+
+        <motion.div
+          className="changes-story__filter-result"
+          initial={reduce ? false : { opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.7 }}
-          transition={{ duration: 0.7, delay: 0.25 }}
+          viewport={{ once: true, amount: 0.55 }}
+          transition={{ duration: reduce ? 0.01 : 0.65 }}
         >
-          FOCUS eliminó el ruido. <strong>Solo dejó visible lo relevante.</strong>
-        </motion.p>
+          <span><Sparkles aria-hidden="true" /> {changes.newItemsCount} cambios observados</span>
+          <i aria-hidden="true" />
+          <strong>Solo {changes.relevantChangesCount} eventos merecen tu atención.</strong>
+          <button type="button" className="briefing-action briefing-action--primary" onClick={onContinue}>
+            Continuar <ArrowRight aria-hidden="true" />
+          </button>
+        </motion.div>
       </div>
     </section>
   );
