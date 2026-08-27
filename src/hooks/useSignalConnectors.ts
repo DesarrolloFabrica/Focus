@@ -13,10 +13,10 @@ export interface SignalConnectorGeometry {
 }
 
 const PULSE_OFFSETS: Record<SignalConnectorKey, string> = {
-  priorities: '2.1s',
-  changes: '5.6s',
-  anomalies: '9.1s',
-  stable: '12.6s',
+  priorities: '1.2s',
+  changes: '4.8s',
+  anomalies: '8.4s',
+  stable: '12.0s',
 };
 
 const CONNECTOR_KEYS: SignalConnectorKey[] = ['priorities', 'changes', 'anomalies', 'stable'];
@@ -28,11 +28,11 @@ function buildCurve(
 ): string {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
-  const bend = Math.min(Math.abs(dx) * 0.42, 90);
+  const bend = Math.max(Math.min(Math.abs(dx) * 0.5, 140), 50);
   const cp1x = start.x + (isLeft ? bend : -bend);
-  const cp1y = start.y + dy * 0.08;
-  const cp2x = end.x + (isLeft ? -bend * 0.35 : bend * 0.35);
-  const cp2y = end.y - dy * 0.08;
+  const cp1y = start.y + dy * 0.12;
+  const cp2x = end.x + (isLeft ? -bend * 0.45 : bend * 0.45);
+  const cp2y = end.y - dy * 0.12;
   return `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
 }
 
@@ -62,7 +62,7 @@ export function useSignalConnectors(
       x: coreRect.left + coreRect.width / 2 - stageRect.left,
       y: coreRect.top + coreRect.height / 2 - stageRect.top,
     };
-    const coreRadius = Math.min(coreRect.width, coreRect.height) * 0.36;
+    const coreRadius = Math.min(coreRect.width, coreRect.height) * 0.38;
 
     const next: SignalConnectorGeometry[] = [];
 
@@ -70,15 +70,25 @@ export function useSignalConnectors(
       const signalEl = signalRefs.current?.[key];
       if (!signalEl) continue;
 
-      const iconEl =
-        signalEl.querySelector('.iv-intro-signal__icon, .focus-signal__icon') ?? signalEl;
-      const iconRect = iconEl.getBoundingClientRect();
+      const cardRect = signalEl.getBoundingClientRect();
       const isLeft = key === 'priorities' || key === 'changes';
 
-      const start = {
-        x: (isLeft ? iconRect.right : iconRect.left) - stageRect.left,
-        y: iconRect.top + iconRect.height / 2 - stageRect.top,
-      };
+      // Check if there's a dedicated terminal socket element
+      const socketEl = signalEl.querySelector('.iv-intro-signal__socket') as HTMLElement | null;
+      let start: { x: number; y: number };
+
+      if (socketEl) {
+        const socketRect = socketEl.getBoundingClientRect();
+        start = {
+          x: socketRect.left + socketRect.width / 2 - stageRect.left,
+          y: socketRect.top + socketRect.height / 2 - stageRect.top,
+        };
+      } else {
+        start = {
+          x: (isLeft ? cardRect.right : cardRect.left) - stageRect.left,
+          y: cardRect.top + cardRect.height * 0.44 - stageRect.top,
+        };
+      }
 
       const angle = Math.atan2(coreCenter.y - start.y, coreCenter.x - start.x);
       const end = {
@@ -92,7 +102,7 @@ export function useSignalConnectors(
         start,
         end,
         pulseBegin: PULSE_OFFSETS[key],
-        cycleDur: '16s',
+        cycleDur: '14s',
       });
     }
 

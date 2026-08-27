@@ -5,6 +5,7 @@ import { FocusPerspective, FocusScenario } from '../../types/focus';
 import { ActionModal } from '../actions/ActionModal';
 import { AskPanel } from '../ask/AskPanel';
 import { NarrativeTransition } from '../briefing/NarrativeTransition';
+import { NoiseFilterTransition } from '../briefing/NoiseFilterTransition';
 import { DemoMenu } from '../demo/DemoMenu';
 import { InvestigationView } from '../investigation/InvestigationView';
 import { Header } from '../layout/Header';
@@ -77,16 +78,16 @@ export const FocusExperience: React.FC = () => {
     if (phase !== 'arrival' || isStartingTransition) return;
     setIsStartingTransition(true);
 
-    const mountDelay = reduceMotion ? 20 : 320;
-    const finishDelay = reduceMotion ? 80 : 720;
+    const mountDelay = reduceMotion ? 20 : 420;
+    const finishDelay = reduceMotion ? 60 : 780;
 
     window.setTimeout(() => {
       setPhase('briefing');
       setActiveStep(0);
+      getScrollRoot()?.scrollTo({ top: 0, behavior: 'auto' });
     }, mountDelay);
 
     window.setTimeout(() => {
-      getScrollRoot()?.scrollTo({ top: 0, behavior: 'auto' });
       setIsStartingTransition(false);
     }, finishDelay);
   };
@@ -215,6 +216,8 @@ export const FocusExperience: React.FC = () => {
           >
             {isBriefingVisible ? (
               <>
+                <NoiseFilterTransition id="transition-panorama-to-priority" />
+
                 <PrioritySection priority={briefing.mainPriority} onContinue={() => scrollTo('section-chapter-why')} />
 
                 <WhyItMattersSection

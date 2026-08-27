@@ -171,23 +171,23 @@ export const FocusCore: React.FC<FocusCoreProps> = ({
           aria-hidden="true"
         />
         <div
-          className="focus-particle-core__aura absolute inset-[-18%] rounded-full pointer-events-none"
+          className="focus-particle-core__aura absolute inset-[-16%] rounded-full pointer-events-none"
           style={{
             background: `radial-gradient(circle at center,
               ${particleGlow} 0%,
-              rgba(30, 70, 200, 0.07) 25%,
-              rgba(80, 30, 180, 0.035) 45%,
+              rgba(37, 99, 235, 0.08) 28%,
+              rgba(99, 102, 241, 0.03) 48%,
               transparent 70%)`,
           }}
         />
-        <div className="focus-particle-core__orbit focus-particle-core__orbit--field absolute inset-[-8%] rounded-full pointer-events-none" />
-        <div className="focus-particle-core__orbit focus-particle-core__orbit--outer absolute inset-[2%] rounded-full pointer-events-none" />
-        <div className="focus-particle-core__orbit focus-particle-core__orbit--inner absolute inset-[18%] rounded-full pointer-events-none" />
+        <div className="focus-particle-core__orbit focus-particle-core__orbit--field absolute inset-[-6%] rounded-full pointer-events-none" />
+        <div className="focus-particle-core__orbit focus-particle-core__orbit--outer absolute inset-[3%] rounded-full pointer-events-none" />
+        <div className="focus-particle-core__orbit focus-particle-core__orbit--inner absolute inset-[16%] rounded-full pointer-events-none" />
 
         {/* CAPA 2 — Inteligencia: filamentos / partículas */}
-        <FocusCoreCanvas state={state} interactive={interactive && !shouldReduceMotion} className="absolute inset-[-6%]" />
+        <FocusCoreCanvas state={state} interactive={interactive && !shouldReduceMotion} className="absolute inset-[-4%]" />
 
-        {/* CAPA 1 — Núcleo */}
+        {/* CAPA 1 — Núcleo con iluminación por capas: F -> inner glow -> halo compacto -> aura */}
         <div className="focus-particle-core__void absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none" />
         {useLetterMark && (
           <div className="focus-particle-core__mark-ring pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full" aria-hidden="true" />
@@ -196,21 +196,22 @@ export const FocusCore: React.FC<FocusCoreProps> = ({
           className={`focus-particle-core__mark relative z-10 flex items-center justify-center pointer-events-none ${useLetterMark ? 'focus-particle-core__mark--letter' : ''}`}
           animate={
             shouldReduceMotion
-              ? { opacity: 0.92, scale: 1 }
-              : { opacity: [0.88, 1, 0.88], scale: [1, useLetterMark ? 1.03 : 1.05, 1] }
+              ? { opacity: 0.96, scale: 1 }
+              : { opacity: [0.93, 1, 0.93], scale: [1, useLetterMark ? 1.015 : 1.025, 1] }
           }
           transition={
             shouldReduceMotion
               ? { duration: 0.01 }
-              : { duration: 7.2, repeat: Infinity, ease: 'easeInOut', delay: 1.4 }
+              : { duration: 6.0, repeat: Infinity, ease: 'easeInOut' }
           }
         >
           {useLetterMark ? (
             <svg className="focus-particle-core__letter" viewBox="0 0 64 64" fill="none" aria-hidden="true">
               <defs>
-                <linearGradient id={letterGradientId} x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#f0fbff" />
-                  <stop offset="45%" stopColor="#7dd3fc" />
+                <linearGradient id={letterGradientId} x1="10" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="35%" stopColor="#e0f2fe" />
+                  <stop offset="70%" stopColor="#7dd3fc" />
                   <stop offset="100%" stopColor="#a78bfa" />
                 </linearGradient>
               </defs>
