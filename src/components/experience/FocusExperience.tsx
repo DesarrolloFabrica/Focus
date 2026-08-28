@@ -6,6 +6,7 @@ import { ActionModal } from '../actions/ActionModal';
 import { AskPanel } from '../ask/AskPanel';
 import { NarrativeTransition } from '../briefing/NarrativeTransition';
 import { NoiseFilterTransition } from '../briefing/NoiseFilterTransition';
+import { WhyChangesBridge } from '../briefing/WhyChangesBridge';
 import { DemoMenu } from '../demo/DemoMenu';
 import { InvestigationView } from '../investigation/InvestigationView';
 import { Header } from '../layout/Header';
@@ -220,36 +221,13 @@ export const FocusExperience: React.FC = () => {
 
                 <PrioritySection priority={briefing.mainPriority} onContinue={() => scrollTo('section-chapter-why')} />
 
-                <WhyItMattersSection
-                  signals={briefing.signals}
-                  conclusion={briefing.mainPriority.explanation.summaryText}
-                  onContinue={() => scrollTo('transition-to-changes')}
-                />
+                <WhyItMattersSection signals={briefing.signals} />
 
-                <NarrativeTransition
-                  id="transition-to-changes"
-                  firstLine="Pero saber qué importa no es suficiente."
-                  secondLine="También necesitas saber qué cambió."
-                  variant="timeline"
-                />
+                <WhyChangesBridge conclusion={briefing.mainPriority.explanation.summaryText} />
 
-                <WhatChangedSection changes={briefing.changes} onContinue={() => scrollTo('transition-to-anomaly')} />
+                <WhatChangedSection changes={briefing.changes} onContinue={() => scrollTo('section-chapter-anomaly')} />
 
-                <NarrativeTransition
-                  id="transition-to-anomaly"
-                  firstLine="Entre lo que cambió, una señal se comporta distinto."
-                  secondLine="Eso merece una mirada aparte."
-                  variant="anomaly-bridge"
-                />
-
-                <AnomalySection anomaly={briefing.anomaly} onContinue={() => scrollTo('transition-to-coverage')} />
-
-                <NarrativeTransition
-                  id="transition-to-coverage"
-                  firstLine="Ya revisamos lo que requiere atención."
-                  secondLine="Ahora, veamos lo que está bien."
-                  variant="calm"
-                />
+                <AnomalySection anomaly={briefing.anomaly} />
 
                 <StableSection entities={briefing.entities} onContinue={() => scrollTo('transition-to-summary')} />
 

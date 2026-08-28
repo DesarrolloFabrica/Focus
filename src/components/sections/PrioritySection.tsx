@@ -112,7 +112,7 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority }) =>
   return (
     <section
       id="section-chapter-priority"
-      className="relative pt-4 sm:pt-6 pb-4 sm:pb-6 overflow-hidden flex flex-col"
+      className="iv-priority-section relative pb-4 sm:pb-6 overflow-hidden flex flex-col"
       data-chapter="priority"
     >
       {/* Soft static ambient — opacity pulse only (no scale on blurred layers) */}

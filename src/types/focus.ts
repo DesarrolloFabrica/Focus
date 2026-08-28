@@ -181,6 +181,14 @@ export interface FocusAnomaly {
   expectedPath: number[];
   actualPath: number[];
   breakpointLabel: string;
+  baselineLabel?: string;
+  baselineValue?: string;
+  currentValue?: string;
+  delta?: string;
+  timeWindow?: string;
+  anomalyTitle?: string;
+  anomalyDescription?: string;
+  impactText?: string;
 }
 
 export interface FocusStableSummary {
