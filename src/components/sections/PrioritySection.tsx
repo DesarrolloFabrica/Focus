@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, useReducedMotion, type Variants } from 'motion/react';
 import { ChevronDown, TrendingUp, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
-import focusPriorityBeacon from '../../assets/focus-priority-beacon.png';
+import focusPriorityBeacon from '../../assets/focus-priority-beacon.webp';
 import { FocusPriority } from '../../types/focus';
 import { useIntroScrollRoot } from './ArrivalSection';
 

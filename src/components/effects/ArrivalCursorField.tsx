@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useReducedMotion } from 'motion/react';
+import { getPerfConfig, getPerfTier, startManagedLoop, subscribePerf, type PerfConfig } from '../../perf';
 
 interface Spark {
   x: number;
@@ -25,7 +26,7 @@ export const ArrivalCursorField: React.FC<ArrivalCursorFieldProps> = ({ targetRe
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    if (reduceMotion) return undefined;
+    if (reduceMotion || getPerfTier() === 'lite') return undefined;
 
     const canvas = canvasRef.current;
     const target = targetRef.current;
@@ -37,17 +38,25 @@ export const ArrivalCursorField: React.FC<ArrivalCursorFieldProps> = ({ targetRe
     let width = 0;
     let height = 0;
     let dpr = 1;
-    let frameId = 0;
-    let lastTime = 0;
+    let perf: PerfConfig = getPerfConfig();
+    let maxSparks = Math.max(10, Math.round(MAX_SPARKS * perf.particleScale));
+
+    // Rectangulo cacheado: leerlo en cada pointermove forzaba un reflow
+    // sincrono por cada movimiento del raton.
+    let bounds = target.getBoundingClientRect();
 
     const pointer = { x: 0, y: 0, tx: 0, ty: 0, active: false, energy: 0 };
     const sparks: Spark[] = [];
+    let lastActivity = performance.now();
+    const idleMs = perf.tier === 'balanced' ? 2500 : 3000;
+    const spawnChance = perf.tier === 'balanced' ? 0.32 : 0.55;
+    const burstChance = perf.tier === 'balanced' ? 0.06 : 0.12;
 
     const resize = () => {
-      const rect = target.getBoundingClientRect();
-      width = rect.width;
-      height = rect.height;
-      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      bounds = target.getBoundingClientRect();
+      width = bounds.width;
+      height = bounds.height;
+      dpr = Math.min(window.devicePixelRatio || 1, perf.maxDpr);
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       canvas.style.width = `${width}px`;
@@ -55,8 +64,15 @@ export const ArrivalCursorField: React.FC<ArrivalCursorFieldProps> = ({ targetRe
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
+    const unsubscribePerf = subscribePerf((next) => {
+      perf = next;
+      maxSparks = Math.max(10, Math.round(MAX_SPARKS * perf.particleScale));
+      if (sparks.length > maxSparks) sparks.splice(0, sparks.length - maxSparks);
+      resize();
+    });
+
     const spawnSpark = (x: number, y: number, burst = false) => {
-      if (sparks.length >= MAX_SPARKS) sparks.shift();
+      if (sparks.length >= maxSparks) sparks.shift();
       const angle = Math.random() * TAU;
       const speed = burst ? 0.35 + Math.random() * 0.55 : 0.12 + Math.random() * 0.28;
       sparks.push({
@@ -72,21 +88,36 @@ export const ArrivalCursorField: React.FC<ArrivalCursorFieldProps> = ({ targetRe
     };
 
     const onMove = (event: PointerEvent) => {
-      const rect = target.getBoundingClientRect();
-      pointer.tx = event.clientX - rect.left;
-      pointer.ty = event.clientY - rect.top;
+      lastActivity = performance.now();
+      pointer.tx = event.clientX - bounds.left;
+      pointer.ty = event.clientY - bounds.top;
       pointer.active = true;
-      if (Math.random() < 0.55) spawnSpark(pointer.tx, pointer.ty);
-      if (Math.random() < 0.12) spawnSpark(pointer.tx, pointer.ty, true);
+      if (Math.random() < spawnChance) spawnSpark(pointer.tx, pointer.ty);
+      if (Math.random() < burstChance) spawnSpark(pointer.tx, pointer.ty, true);
     };
 
     const onLeave = () => {
       pointer.active = false;
     };
 
-    const tick = (time: number) => {
-      const dt = Math.min(32, time - lastTime || 16);
-      lastTime = time;
+    // El rect solo cambia con scroll o resize. Se marca sucio y se relee una
+    // sola vez por frame, dentro del rAF, en lugar de en cada pointermove.
+    let boundsDirty = false;
+    const markBoundsDirty = () => {
+      boundsDirty = true;
+    };
+
+    const tick = (_time: number, delta: number) => {
+      if (performance.now() - lastActivity > idleMs && !pointer.active) return;
+
+      if (boundsDirty) {
+        boundsDirty = false;
+        bounds = target.getBoundingClientRect();
+      }
+
+      if (pointer.active) lastActivity = performance.now();
+
+      const dt = Math.min(32, delta);
 
       pointer.x += (pointer.tx - pointer.x) * 0.14;
       pointer.y += (pointer.ty - pointer.y) * 0.14;
@@ -108,7 +139,9 @@ export const ArrivalCursorField: React.FC<ArrivalCursorFieldProps> = ({ targetRe
         glow.addColorStop(0.7, `rgba(120, 80, 255, ${0.025 * pointer.energy})`);
         glow.addColorStop(1, 'rgba(0,0,0,0)');
         context.fillStyle = glow;
-        context.fillRect(0, 0, width, height);
+        // Solo se pinta el area util del halo, no todo el lienzo.
+        const radius = 200 + pointer.energy * 80;
+        context.fillRect(pointer.x - radius, pointer.y - radius, radius * 2, radius * 2);
 
         const coreGlow = context.createRadialGradient(
           pointer.x,
@@ -147,8 +180,10 @@ export const ArrivalCursorField: React.FC<ArrivalCursorFieldProps> = ({ targetRe
         const alpha = fade * fade * (0.35 + pointer.energy * 0.55);
         context.beginPath();
         context.fillStyle = `hsla(${spark.hue}, 92%, 72%, ${alpha})`;
-        context.shadowColor = `hsla(${spark.hue}, 100%, 70%, ${alpha * 0.8})`;
-        context.shadowBlur = spark.size > 1.2 ? 8 : 4;
+        if (perf.canvasGlow) {
+          context.shadowColor = `hsla(${spark.hue}, 100%, 70%, ${alpha * 0.8})`;
+          context.shadowBlur = spark.size > 1.2 ? 8 : 4;
+        }
         context.arc(spark.x, spark.y, spark.size * (0.7 + fade * 0.5), 0, TAU);
         context.fill();
         context.shadowBlur = 0;
@@ -157,26 +192,30 @@ export const ArrivalCursorField: React.FC<ArrivalCursorFieldProps> = ({ targetRe
       if (pointer.active && pointer.energy > 0.2 && Math.random() < 0.08) {
         spawnSpark(pointer.x, pointer.y);
       }
-
-      frameId = window.requestAnimationFrame(tick);
     };
 
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(target);
-    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointermove', onMove, { passive: true });
     target.addEventListener('pointerleave', onLeave);
-    frameId = window.requestAnimationFrame(tick);
+    window.addEventListener('scroll', markBoundsDirty, { passive: true, capture: true });
+    window.addEventListener('resize', markBoundsDirty);
+
+    const stopLoop = startManagedLoop({ element: target, onFrame: tick });
 
     return () => {
-      window.cancelAnimationFrame(frameId);
+      stopLoop();
+      unsubscribePerf();
       observer.disconnect();
       target.removeEventListener('pointermove', onMove);
       target.removeEventListener('pointerleave', onLeave);
+      window.removeEventListener('scroll', markBoundsDirty, { capture: true } as EventListenerOptions);
+      window.removeEventListener('resize', markBoundsDirty);
     };
   }, [reduceMotion, targetRef]);
 
-  if (reduceMotion) return null;
+  if (reduceMotion || getPerfTier() === 'lite') return null;
 
   return (
     <canvas ref={canvasRef} className={`focus-arrival-cursor-field pointer-events-none absolute inset-0 z-[1] ${className}`} aria-hidden="true" />

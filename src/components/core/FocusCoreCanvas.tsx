@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { FocusCoreState } from '../../types/focus';
+import { getPerfConfig, startManagedLoop, subscribePerf, type PerfConfig } from '../../perf';
 
 interface FocusCoreCanvasProps {
   state: FocusCoreState;
@@ -170,7 +171,6 @@ export const FocusCoreCanvas: React.FC<FocusCoreCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerTargetRef = useRef({ x: 0, y: 0, active: false });
-  const animationFrameRef = useRef<number | null>(null);
   const stateRef = useRef(state);
   const targetStateRef = useRef(state);
   const paletteBlendRef = useRef(1);
@@ -195,16 +195,24 @@ export const FocusCoreCanvas: React.FC<FocusCoreCanvasProps> = ({
     let width = 0;
     let height = 0;
     let dpr = 1;
-    let startTime = performance.now();
-    let previousFrame = 0;
-    let isVisible = !document.hidden;
+    // Reloj propio acumulado: al pausar el bucle fuera de pantalla el tiempo
+    // no salta y la orbita retoma exactamente donde se quedo.
+    let elapsed = 0;
+    let perf: PerfConfig = getPerfConfig();
+    let lastActivity = performance.now();
+    const idleMs = () => (perf.tier === 'lite' ? 1500 : 3000);
     let currentPalette = [...(palettes[stateRef.current] || palettes.default)];
     let fromPalette = currentPalette;
+
+    const unsubscribePerf = subscribePerf((next) => {
+      perf = next;
+      resize();
+    });
 
     const resize = () => {
       width = Math.max(1, canvas.clientWidth);
       height = Math.max(1, canvas.clientHeight);
-      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      dpr = Math.min(window.devicePixelRatio || 1, perf.maxDpr);
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -216,6 +224,7 @@ export const FocusCoreCanvas: React.FC<FocusCoreCanvasProps> = ({
 
     const updatePointerPhysics = () => {
       const target = pointerTargetRef.current;
+      if (target.active) lastActivity = performance.now();
       const targetX = target.active ? target.x : width / 2;
       const targetY = target.active ? target.y : height / 2;
       pointer.x += (targetX - pointer.x) * 0.06;
@@ -315,24 +324,22 @@ export const FocusCoreCanvas: React.FC<FocusCoreCanvasProps> = ({
       context.strokeStyle = color;
       context.globalAlpha = 0.48 * reveal;
       context.lineWidth = track.width * 1.5;
-      context.shadowColor = color;
-      context.shadowBlur = 6;
+      if (perf.canvasGlow) {
+        context.shadowColor = color;
+        context.shadowBlur = 6;
+      }
       context.stroke();
       context.shadowBlur = 0;
     };
 
-    const render = (timestamp: number) => {
-      if (!isVisible) return;
-
-      const minFrameGap = reducedMotion ? 40 : 16;
-      if (timestamp - previousFrame < minFrameGap) {
-        animationFrameRef.current = requestAnimationFrame(render);
+    const render = (_time: number, delta: number) => {
+      if (!pointerTargetRef.current.active && performance.now() - lastActivity > idleMs()) {
         return;
       }
-      previousFrame = timestamp;
+
       updatePointerPhysics();
 
-      const elapsed = (timestamp - startTime) / 1000;
+      elapsed += (reducedMotion ? delta * 0.4 : delta) / 1000;
       const time = reducedMotion ? elapsed * 0.15 : elapsed;
       const palette = resolvePalette();
 
@@ -394,7 +401,7 @@ export const FocusCoreCanvas: React.FC<FocusCoreCanvasProps> = ({
           const color = palette[p.colorIndex % palette.length];
 
           // Soft particle trail
-          if (!reducedMotion && particleOpacity > 0.3) {
+          if (perf.canvasTrails && !reducedMotion && particleOpacity > 0.3) {
             const trailSteps = 4;
             for (let s = 1; s <= trailSteps; s += 1) {
               const trailAngle = currentAngle - (p.speed > 0 ? 1 : -1) * (s * 0.04);
@@ -414,8 +421,10 @@ export const FocusCoreCanvas: React.FC<FocusCoreCanvasProps> = ({
           context.arc(pt.x, pt.y, p.size, 0, TAU);
           context.fillStyle = color;
           context.globalAlpha = particleOpacity;
-          context.shadowColor = color;
-          context.shadowBlur = 5;
+          if (perf.canvasGlow) {
+            context.shadowColor = color;
+            context.shadowBlur = 5;
+          }
           context.fill();
           context.shadowBlur = 0;
         }
@@ -424,19 +433,6 @@ export const FocusCoreCanvas: React.FC<FocusCoreCanvasProps> = ({
       context.globalCompositeOperation = 'source-over';
       context.restore();
       context.globalAlpha = 1;
-
-      animationFrameRef.current = requestAnimationFrame(render);
-    };
-
-    const handleVisibilityChange = () => {
-      isVisible = !document.hidden;
-      if (!isVisible && animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      } else if (isVisible && animationFrameRef.current === null) {
-        startTime = performance.now() - 1000;
-        animationFrameRef.current = requestAnimationFrame(render);
-      }
     };
 
     const handleMotionPreference = (event: MediaQueryListEvent) => {
@@ -446,14 +442,15 @@ export const FocusCoreCanvas: React.FC<FocusCoreCanvasProps> = ({
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(canvas);
     resize();
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     mediaQuery.addEventListener('change', handleMotionPreference);
-    animationFrameRef.current = requestAnimationFrame(render);
+
+    // El bucle solo corre si el canvas esta en pantalla y la pestana visible.
+    const stopLoop = startManagedLoop({ element: canvas, onFrame: render });
 
     return () => {
-      if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
+      stopLoop();
+      unsubscribePerf();
       resizeObserver.disconnect();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       mediaQuery.removeEventListener('change', handleMotionPreference);
     };
   }, [field, interactive]);

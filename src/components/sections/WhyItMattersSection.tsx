@@ -9,6 +9,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { FocusSignal } from '../../types/focus';
+import { getPerfConfig, isSubtreeInView, observeInView, startManagedLoop } from '../../perf';
 import { useIntroScrollRoot } from './ArrivalSection';
 
 interface WhyItMattersSectionProps {
@@ -32,17 +33,18 @@ const CoreParticleField: React.FC<{ activeStep: WhyStep; reduceMotion: boolean }
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let animId: number;
+    const perf = getPerfConfig();
     const width = (canvas.width = 360);
     const height = (canvas.height = 360);
     const cx = width / 2;
     const cy = height / 2;
+    const count = Math.max(8, Math.round(18 * perf.particleScale));
 
-    const particles = Array.from({ length: 18 }).map((_, i) => ({
+    const particles = Array.from({ length: count }).map((_, i) => ({
       orbitRadiusX: 54 + (i % 5) * 20,
       orbitRadiusY: 42 + (i % 5) * 15,
       tilt: ((i * 37) % 360) * (Math.PI / 180),
-      angle: (i / 18) * Math.PI * 2,
+      angle: (i / count) * Math.PI * 2,
       speed: (0.008 + (i % 4) * 0.005) * (i % 2 === 0 ? 1 : -1) * (reduceMotion ? 0.2 : 1),
       size: 1.2 + (i % 3) * 0.8,
       color:
@@ -57,12 +59,14 @@ const CoreParticleField: React.FC<{ activeStep: WhyStep; reduceMotion: boolean }
     }));
 
     let t = 0;
-    const render = () => {
+    const render = (_time: number, delta: number) => {
       ctx.clearRect(0, 0, width, height);
-      t += 0.02;
+      // Avance ligado al tiempo real: la orbita mantiene su velocidad aunque
+      // el bucle este limitado a menos FPS en equipos modestos.
+      t += 0.02 * (delta / 16.667);
 
       particles.forEach((p) => {
-        p.angle += p.speed;
+        p.angle += p.speed * (delta / 16.667);
         const cosTilt = Math.cos(p.tilt);
         const sinTilt = Math.sin(p.tilt);
 
@@ -88,27 +92,48 @@ const CoreParticleField: React.FC<{ activeStep: WhyStep; reduceMotion: boolean }
       });
 
       ctx.globalAlpha = 1;
-      animId = requestAnimationFrame(render);
     };
 
-    render();
-
-    return () => {
-      cancelAnimationFrame(animId);
-    };
+    // Solo dibuja mientras el nucleo esta en pantalla.
+    return startManagedLoop({ element: canvas, onFrame: render });
   }, [reduceMotion]);
 
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" width={360} height={360} />;
 };
 
 /** Scroll only picks the active beat — never drives mid-fade opacities. */
-function stepFromProgress(p: number): WhyStep {
-  if (p < 0.16) return 'intro';
-  if (p < 0.32) return 'e1';
-  if (p < 0.48) return 'e2';
-  if (p < 0.64) return 'e3';
-  if (p < 0.8) return 'e4';
+const WHY_STEPS: WhyStep[] = ['intro', 'e1', 'e2', 'e3', 'e4', 'convergence'];
+
+/**
+ * Umbrales con histéresis: al bajar se entra en el siguiente beat más pronto;
+ * al subir hace falta retroceder un poco más para no “rebobinar” de golpe.
+ */
+const WHY_STEP_GATES: Record<WhyStep, { forward: number; backward: number }> = {
+  intro: { forward: 0.16, backward: 0 },
+  e1: { forward: 0.32, backward: 0.11 },
+  e2: { forward: 0.48, backward: 0.27 },
+  e3: { forward: 0.64, backward: 0.43 },
+  e4: { forward: 0.8, backward: 0.59 },
+  convergence: { forward: 1.01, backward: 0.75 },
+};
+
+function stepFromProgressForward(p: number): WhyStep {
+  if (p < WHY_STEP_GATES.e1.forward) return 'intro';
+  if (p < WHY_STEP_GATES.e2.forward) return 'e1';
+  if (p < WHY_STEP_GATES.e3.forward) return 'e2';
+  if (p < WHY_STEP_GATES.e4.forward) return 'e3';
+  if (p < WHY_STEP_GATES.convergence.forward) return 'e4';
   return 'convergence';
+}
+
+function resolveWhyStep(p: number, current: WhyStep, goingUp: boolean): WhyStep {
+  if (!goingUp) return stepFromProgressForward(p);
+
+  let index = WHY_STEPS.indexOf(current);
+  while (index > 0 && p < WHY_STEP_GATES[WHY_STEPS[index]].backward) {
+    index -= 1;
+  }
+  return WHY_STEPS[index];
 }
 
 const STEP_LABEL: Record<WhyStep, string> = {
@@ -125,6 +150,7 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
   const scrollRootRef = useIntroScrollRoot();
   const reduceMotion = !!useReducedMotion();
   const [step, setStep] = useState<WhyStep>('intro');
+  const [scrollDirection, setScrollDirection] = useState<'up' | 'down'>('down');
 
   const impactSignal = signals.find((s) => s.semanticType === 'impact') ?? signals[0] ?? {
     value: '12',
@@ -154,16 +180,27 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
 
     let frameId = 0;
     let lastStep: WhyStep | null = null;
+    let lastViewportHeight = -1;
+    let lastOffset = -1;
+    let isNearViewport = true;
+    let pendingFinalPass = false;
 
     const handleScroll = () => {
       cancelAnimationFrame(frameId);
       frameId = window.requestAnimationFrame(() => {
+        if (!isSubtreeInView(container) && !pendingFinalPass) return;
+        if (!isNearViewport && !pendingFinalPass) return;
+        pendingFinalPass = false;
+
         const containerRect = container.getBoundingClientRect();
         const rootTop = root ? root.getBoundingClientRect().top : 0;
         const rootHeight = root ? root.clientHeight : window.innerHeight;
         const totalDistance = containerRect.height - rootHeight;
 
-        container.style.setProperty('--iv-why-viewport-height', `${rootHeight}px`);
+        if (rootHeight !== lastViewportHeight) {
+          lastViewportHeight = rootHeight;
+          container.style.setProperty('--iv-why-viewport-height', `${rootHeight}px`);
+        }
 
         if (totalDistance <= 0) {
           if (lastStep !== 'intro') {
@@ -175,9 +212,14 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
 
         const currentOffset = rootTop - containerRect.top;
         const p = Math.max(0, Math.min(1, currentOffset / totalDistance));
-        const next = stepFromProgress(p);
+        const goingUp = lastOffset >= 0 && currentOffset < lastOffset;
+        lastOffset = currentOffset;
+
+        const currentStep = lastStep ?? 'intro';
+        const next = resolveWhyStep(p, currentStep, goingUp);
 
         if (next !== lastStep) {
+          setScrollDirection(goingUp ? 'up' : 'down');
           lastStep = next;
           setStep(next);
         }
@@ -187,9 +229,24 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
     const target = root ?? window;
     target.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', handleScroll);
+
+    const stopObserving = observeInView(
+      container,
+      (inView) => {
+        isNearViewport = inView;
+        // Al salir de pantalla se permite una ultima pasada para que los
+        // estados queden en reposo; despues deja de medirse.
+        if (!inView) pendingFinalPass = true;
+        handleScroll();
+      },
+      '200px',
+      root,
+    );
+
     handleScroll();
 
     return () => {
+      stopObserving();
       target.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleScroll);
       cancelAnimationFrame(frameId);
@@ -263,9 +320,14 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
         y: 0,
         transition: { duration: reduceMotion ? 0.01 : 0.5, ease: EASE_OUT_EXPO },
       },
-      exit: reduceMotion
-        ? { opacity: 0, transition: { duration: 0.01 } }
-        : { opacity: 0, y: -14, transition: { duration: 0.3, ease: EASE_OUT_SOFT } },
+      exit: (direction: 'up' | 'down') =>
+        reduceMotion
+          ? { opacity: 0, transition: { duration: 0.01 } }
+          : {
+              opacity: 0,
+              y: direction === 'up' ? 22 : -14,
+              transition: { duration: 0.48, ease: EASE_OUT_SOFT },
+            },
     }),
     [reduceMotion],
   );
@@ -279,9 +341,15 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
         y: 0,
         transition: { duration: reduceMotion ? 0.01 : 0.55, ease: EASE_OUT_EXPO },
       },
-      exit: reduceMotion
-        ? { opacity: 0, transition: { duration: 0.01 } }
-        : { opacity: 0, scale: 0.985, y: -10, transition: { duration: 0.35, ease: EASE_OUT_SOFT } },
+      exit: (direction: 'up' | 'down') =>
+        reduceMotion
+          ? { opacity: 0, transition: { duration: 0.01 } }
+          : {
+              opacity: 0,
+              scale: 0.985,
+              y: direction === 'up' ? 18 : -10,
+              transition: { duration: 0.5, ease: EASE_OUT_SOFT },
+            },
     }),
     [reduceMotion],
   );
@@ -417,12 +485,13 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
         </motion.header>
 
         {/* INTRO BEAT (CLEAN & MINIMALIST BEFORE FIRST EVIDENCE) */}
-        <AnimatePresence mode="sync">
+        <AnimatePresence mode="wait" custom={scrollDirection}>
           {showIntro && (
             <motion.div
               key="why-intro"
               className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 z-20 pointer-events-none"
               variants={layerFade}
+              custom={scrollDirection}
               initial="hidden"
               animate="visible"
               exit="exit"
@@ -467,12 +536,13 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
         </AnimatePresence>
 
         {/* MAIN STAGE: LEFT DETAIL CARD + RIGHT CONNECTED REACTOR NETWORK */}
-        <AnimatePresence mode="sync">
+        <AnimatePresence mode="wait" custom={scrollDirection}>
           {showStage && (
             <motion.div
               key="why-stage"
               className="relative z-20 w-full max-w-7xl mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center my-auto"
               variants={layerFade}
+              custom={scrollDirection}
               initial="hidden"
               animate="visible"
               exit="exit"
@@ -499,13 +569,14 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
                     }`}
                   />
 
-                  <AnimatePresence mode="wait">
+                  <AnimatePresence mode="wait" custom={scrollDirection}>
                     {/* EVIDENCIA 1: IMPACTO */}
                     {beatKey === 'e1' && (
                       <motion.div
                         key="beat-e1"
                         className="flex flex-col"
                         variants={fadeUp}
+                        custom={scrollDirection}
                         initial="hidden"
                         animate="visible"
                         exit="exit"
@@ -557,6 +628,7 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
                         key="beat-e2"
                         className="flex flex-col"
                         variants={fadeUp}
+                        custom={scrollDirection}
                         initial="hidden"
                         animate="visible"
                         exit="exit"
@@ -608,6 +680,7 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
                         key="beat-e3"
                         className="flex flex-col"
                         variants={fadeUp}
+                        custom={scrollDirection}
                         initial="hidden"
                         animate="visible"
                         exit="exit"
@@ -659,6 +732,7 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
                         key="beat-e4"
                         className="flex flex-col"
                         variants={fadeUp}
+                        custom={scrollDirection}
                         initial="hidden"
                         animate="visible"
                         exit="exit"
@@ -710,6 +784,7 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
                         key="beat-convergence"
                         className="flex flex-col"
                         variants={fadeUp}
+                        custom={scrollDirection}
                         initial="hidden"
                         animate="visible"
                         exit="exit"
@@ -1146,14 +1221,22 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
         </AnimatePresence>
 
         {/* BOTTOM SYNTHESIS BANNER (WITHOUT HISTORY BUTTON, WITH COLORFUL HIGHLIGHT TEXT) */}
-        <AnimatePresence>
+        <AnimatePresence mode="wait" custom={scrollDirection}>
           {showStage && (
             <motion.footer
               key="why-footer"
               className="relative z-20 w-full max-w-7xl mx-auto mt-auto pt-2"
               initial={reduceMotion ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8, transition: { duration: 0.3 } }}
+              exit={
+                reduceMotion
+                  ? { opacity: 0, transition: { duration: 0.01 } }
+                  : {
+                      opacity: 0,
+                      y: scrollDirection === 'up' ? 14 : 8,
+                      transition: { duration: 0.45, ease: EASE_OUT_SOFT },
+                    }
+              }
               transition={{ duration: reduceMotion ? 0.01 : 0.45, ease: EASE_OUT_SOFT, delay: reduceMotion ? 0 : 0.1 }}
             >
               <div className="p-3.5 sm:p-4 rounded-2xl bg-[#061020]/90 border border-cyan-500/30 backdrop-blur-xl flex items-center gap-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.6)]">

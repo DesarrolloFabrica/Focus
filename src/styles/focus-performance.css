@@ -1,0 +1,536 @@
+/* =========================================================================
+   FOCUS - Capa de rendimiento adaptativo
+   -------------------------------------------------------------------------
+   Este archivo NO elimina animaciones. Ajusta el COSTE de los efectos segun
+   la potencia real del equipo (<html data-perf="high|balanced|lite">) y
+   detiene el trabajo que no se esta viendo.
+
+   Se importa el ultimo en main.tsx para poder anular valores previos.
+   Los bloques 3 y 4 estan generados a partir de index.css y focus-modern.css.
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   1. Pausar animaciones fuera de pantalla
+   El briefing monta los 7 capitulos a la vez: sin esto, decenas de
+   animaciones infinitas siguen corriendo aunque nadie las vea.
+   ------------------------------------------------------------------------- */
+[data-inview='false'],
+[data-inview='false'] *,
+[data-inview='false'] *::before,
+[data-inview='false'] *::after {
+  animation-play-state: paused !important;
+}
+
+/* Las capas decorativas fuera de pantalla tampoco necesitan repintarse. */
+[data-inview='false'] .iv-journey__ambient-orbits,
+[data-inview='false'] .focus-orbit-stage__glow,
+[data-inview='false'] .iv-priority__glow,
+[data-inview='false'] .iv-summary-chapter__aura {
+  visibility: hidden;
+}
+
+/* -------------------------------------------------------------------------
+   2. Sugerencias de compositor
+   ------------------------------------------------------------------------- */
+.focus-atmosphere {
+  will-change: opacity;
+  contain: layout paint style;
+}
+
+/* La transicion de degradado a pantalla completa repinta todo el viewport.
+   Solo se permite en equipos holgados; en el resto se cruza por opacidad. */
+[data-perf='balanced'] .focus-atmosphere,
+[data-perf='lite'] .focus-atmosphere {
+  transition: opacity 420ms ease !important;
+}
+
+/* -------------------------------------------------------------------------
+   3. Desenfoques decorativos (filter: blur)
+   El radio se reduce por nivel: el area que el compositor debe rasterizar
+   crece con el radio, y es lo que ahoga a las GPU integradas.
+   ------------------------------------------------------------------------- */
+[data-perf='balanced'] .focus-experience .iv-intro.is-briefing .iv-priority__figure-glow {
+  filter: blur(34px) !important;
+}
+
+[data-perf='balanced'] .focus-experience .iv-intro.is-briefing .iv-priority__panel::after {
+  filter: blur(25px) !important;
+}
+
+[data-perf='balanced'] .focus-orbit-stage__glow {
+  filter: blur(20px) !important;
+}
+
+[data-perf='balanced'] .focus-particle-core__aura {
+  filter: blur(15px) !important;
+}
+
+[data-perf='balanced'] .iv-intro-stage::before {
+  filter: blur(42px) !important;
+}
+
+[data-perf='balanced'] .iv-intro-stage__glow,
+[data-perf='balanced'] .iv-priority__figure-glow {
+  filter: blur(29px) !important;
+}
+
+[data-perf='balanced'] .iv-intro__ambient::before,
+[data-perf='balanced'] .iv-intro__ambient::after {
+  filter: blur(45px) !important;
+}
+
+[data-perf='balanced'] .iv-intro__frame::after {
+  filter: blur(56px) !important;
+}
+
+[data-perf='balanced'] .iv-intro__hero-copy::before,
+[data-perf='balanced'] .iv-panorama__stage-glow {
+  filter: blur(38px) !important;
+}
+
+[data-perf='balanced'] .iv-journey__glow {
+  filter: blur(39px) !important;
+}
+
+[data-perf='balanced'] .iv-noise-filter-transition__signal-aura {
+  filter: blur(22px) !important;
+}
+
+[data-perf='balanced'] .iv-noise-filter-transition__signal-halo {
+  filter: blur(10px) !important;
+}
+
+[data-perf='balanced'] .iv-priority-card__orb {
+  filter: blur(11px) !important;
+}
+
+[data-perf='balanced'] .iv-priority__glow,
+[data-perf='balanced'] .iv-summary-chapter__aura {
+  filter: blur(28px) !important;
+}
+
+[data-perf='balanced'] .priority-trajectory::before,
+[data-perf='balanced'] .why-signal-stage::before {
+  filter: blur(13px) !important;
+}
+
+[data-perf='lite'] .focus-experience .iv-intro.is-briefing .iv-priority__figure-glow {
+  filter: blur(22px) !important;
+}
+
+[data-perf='lite'] .focus-experience .iv-intro.is-briefing .iv-priority__panel::after {
+  filter: blur(16px) !important;
+}
+
+[data-perf='lite'] .focus-orbit-stage__glow {
+  filter: blur(13px) !important;
+}
+
+[data-perf='lite'] .focus-particle-core__aura {
+  filter: blur(10px) !important;
+}
+
+[data-perf='lite'] .iv-intro-stage::before {
+  filter: blur(27px) !important;
+}
+
+[data-perf='lite'] .iv-intro-stage__glow,
+[data-perf='lite'] .iv-priority__figure-glow {
+  filter: blur(19px) !important;
+}
+
+[data-perf='lite'] .iv-intro__ambient::before,
+[data-perf='lite'] .iv-intro__ambient::after {
+  filter: blur(29px) !important;
+}
+
+[data-perf='lite'] .iv-intro__frame::after {
+  filter: blur(36px) !important;
+}
+
+[data-perf='lite'] .iv-intro__hero-copy::before,
+[data-perf='lite'] .iv-journey__glow {
+  filter: blur(25px) !important;
+}
+
+[data-perf='lite'] .iv-noise-filter-transition__signal-aura {
+  filter: blur(14px) !important;
+}
+
+[data-perf='lite'] .iv-noise-filter-transition__signal-halo,
+[data-perf='lite'] .iv-priority-card__orb,
+[data-perf='lite'] .priority-trajectory::before,
+[data-perf='lite'] .why-signal-stage::before {
+  filter: blur(8px) !important;
+}
+
+[data-perf='lite'] .iv-panorama__stage-glow {
+  filter: blur(24px) !important;
+}
+
+[data-perf='lite'] .iv-priority__glow,
+[data-perf='lite'] .iv-summary-chapter__aura {
+  filter: blur(18px) !important;
+}
+
+/* -------------------------------------------------------------------------
+   3b. Desenfoques en nivel high (moderados: premium sin coste extremo)
+   ------------------------------------------------------------------------- */
+[data-perf='high'] .focus-experience .iv-intro.is-briefing .iv-priority__figure-glow {
+  filter: blur(40px) !important;
+}
+
+[data-perf='high'] .focus-experience .iv-intro.is-briefing .iv-priority__panel::after {
+  filter: blur(30px) !important;
+}
+
+[data-perf='high'] .focus-orbit-stage__glow {
+  filter: blur(24px) !important;
+}
+
+[data-perf='high'] .focus-particle-core__aura {
+  filter: blur(18px) !important;
+}
+
+[data-perf='high'] .iv-intro-stage::before {
+  filter: blur(48px) !important;
+}
+
+[data-perf='high'] .iv-intro-stage__glow,
+[data-perf='high'] .iv-priority__figure-glow {
+  filter: blur(34px) !important;
+}
+
+[data-perf='high'] .iv-intro__ambient::before,
+[data-perf='high'] .iv-intro__ambient::after {
+  filter: blur(50px) !important;
+}
+
+[data-perf='high'] .iv-intro__frame::after {
+  filter: blur(60px) !important;
+}
+
+[data-perf='high'] .iv-intro__hero-copy::before,
+[data-perf='high'] .iv-panorama__stage-glow {
+  filter: blur(42px) !important;
+}
+
+[data-perf='high'] .iv-journey__glow {
+  filter: blur(40px) !important;
+}
+
+[data-perf='high'] .iv-noise-filter-transition__signal-aura {
+  filter: blur(26px) !important;
+}
+
+[data-perf='high'] .iv-noise-filter-transition__signal-halo {
+  filter: blur(12px) !important;
+}
+
+[data-perf='high'] .iv-priority-card__orb {
+  filter: blur(14px) !important;
+}
+
+[data-perf='high'] .iv-priority__glow,
+[data-perf='high'] .iv-summary-chapter__aura {
+  filter: blur(32px) !important;
+}
+
+[data-perf='high'] .priority-trajectory::before,
+[data-perf='high'] .why-signal-stage::before {
+  filter: blur(16px) !important;
+}
+
+[data-perf='high'] .iv-priority [class*='blur-[100px]'] {
+  filter: blur(40px) !important;
+}
+
+[data-perf='high'] .iv-priority [class*='blur-[70px]'] {
+  filter: blur(32px) !important;
+}
+
+[data-perf='high'] .iv-priority [class*='blur-[60px]'] {
+  filter: blur(28px) !important;
+}
+
+[data-perf='high'] .iv-priority [class*='blur-[40px]'] {
+  filter: blur(22px) !important;
+}
+
+[data-perf='high'] #focus-main-header.iv-header {
+  -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
+  backdrop-filter: blur(12px) saturate(120%) !important;
+}
+
+[data-perf='high'] #focus-main-header.iv-header.is-embedded {
+  -webkit-backdrop-filter: blur(11px) saturate(120%) !important;
+  backdrop-filter: blur(11px) saturate(120%) !important;
+}
+
+[data-perf='high'] .iv-intro-signal {
+  -webkit-backdrop-filter: blur(14px) saturate(150%) !important;
+  backdrop-filter: blur(14px) saturate(150%) !important;
+}
+
+[data-perf='high'] .iv-intro-trust {
+  -webkit-backdrop-filter: blur(13px) saturate(148%) !important;
+  backdrop-filter: blur(13px) saturate(148%) !important;
+}
+
+[data-perf='high'] .iv-panorama-card {
+  -webkit-backdrop-filter: blur(13px) saturate(140%) !important;
+  backdrop-filter: blur(13px) saturate(140%) !important;
+}
+
+[data-perf='high'] .iv-priority-card {
+  -webkit-backdrop-filter: blur(14px) saturate(120%) !important;
+  backdrop-filter: blur(14px) saturate(120%) !important;
+}
+
+/* -------------------------------------------------------------------------
+   4. Cristal esmerilado (backdrop-filter)
+   Es el efecto mas caro de la pagina: el navegador vuelve a desenfocar todo
+   lo que hay detras en cada frame en que algo se mueve. Se conserva el
+   aspecto, pero con un radio mucho mas barato.
+   ------------------------------------------------------------------------- */
+[data-perf='balanced'] #focus-main-header.iv-header {
+  -webkit-backdrop-filter: blur(10px) saturate(118%) !important;
+  backdrop-filter: blur(10px) saturate(118%) !important;
+}
+
+[data-perf='balanced'] #focus-main-header.iv-header.is-embedded {
+  -webkit-backdrop-filter: blur(9px) saturate(118%) !important;
+  backdrop-filter: blur(9px) saturate(118%) !important;
+}
+
+[data-perf='balanced'] .briefing-action,
+[data-perf='balanced'] .iv-noise-filter-transition__status-pill,
+[data-perf='balanced'] .priority-core-stage > p {
+  -webkit-backdrop-filter: blur(8px) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+[data-perf='balanced'] .focus-section-nav,
+[data-perf='balanced'] .priority-metric-band {
+  -webkit-backdrop-filter: blur(9px) !important;
+  backdrop-filter: blur(9px) !important;
+}
+
+[data-perf='balanced'] .iv-intro-core__orbital-badge,
+[data-perf='balanced'] .iv-noise-filter-transition__eyebrow,
+[data-perf='balanced'] .iv-panorama__live {
+  -webkit-backdrop-filter: blur(7px) !important;
+  backdrop-filter: blur(7px) !important;
+}
+
+[data-perf='balanced'] .iv-intro-signal {
+  -webkit-backdrop-filter: blur(16px) saturate(148%) !important;
+  backdrop-filter: blur(16px) saturate(148%) !important;
+}
+
+[data-perf='balanced'] .iv-intro-trust {
+  -webkit-backdrop-filter: blur(15px) saturate(148%) !important;
+  backdrop-filter: blur(15px) saturate(148%) !important;
+}
+
+[data-perf='balanced'] .iv-panorama-card {
+  -webkit-backdrop-filter: blur(15px) saturate(136%) !important;
+  backdrop-filter: blur(15px) saturate(136%) !important;
+}
+
+[data-perf='balanced'] .iv-panorama__actions .iv-continue,
+[data-perf='balanced'] .iv-panorama__actions .iv-continue.is-light,
+[data-perf='balanced'] .iv-priority__actions .iv-continue,
+[data-perf='balanced'] .iv-priority__actions .iv-continue.is-light {
+  -webkit-backdrop-filter: blur(10px) saturate(130%) !important;
+  backdrop-filter: blur(10px) saturate(130%) !important;
+}
+
+[data-perf='balanced'] .iv-priority-card {
+  -webkit-backdrop-filter: blur(12px) saturate(118%) !important;
+  backdrop-filter: blur(12px) saturate(118%) !important;
+}
+
+[data-perf='balanced'] .iv-priority__figure-cap {
+  -webkit-backdrop-filter: blur(9px) saturate(124%) !important;
+  backdrop-filter: blur(9px) saturate(124%) !important;
+}
+
+[data-perf='lite'] #focus-main-header.iv-header,
+[data-perf='lite'] #focus-main-header.iv-header.is-embedded,
+[data-perf='lite'] .focus-section-nav,
+[data-perf='lite'] .iv-panorama__actions .iv-continue,
+[data-perf='lite'] .iv-panorama__actions .iv-continue.is-light,
+[data-perf='lite'] .iv-priority__actions .iv-continue,
+[data-perf='lite'] .iv-priority__actions .iv-continue.is-light,
+[data-perf='lite'] .iv-priority__figure-cap,
+[data-perf='lite'] .priority-metric-band {
+  -webkit-backdrop-filter: blur(5px) !important;
+  backdrop-filter: blur(5px) !important;
+}
+
+[data-perf='lite'] .briefing-action,
+[data-perf='lite'] .iv-intro-core__orbital-badge,
+[data-perf='lite'] .iv-noise-filter-transition__eyebrow,
+[data-perf='lite'] .iv-noise-filter-transition__status-pill,
+[data-perf='lite'] .iv-panorama__live,
+[data-perf='lite'] .priority-core-stage > p {
+  -webkit-backdrop-filter: blur(4px) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+[data-perf='lite'] .iv-intro-signal {
+  -webkit-backdrop-filter: blur(9px) !important;
+  backdrop-filter: blur(9px) !important;
+}
+
+[data-perf='lite'] .iv-intro-trust,
+[data-perf='lite'] .iv-panorama-card {
+  -webkit-backdrop-filter: blur(8px) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+[data-perf='lite'] .iv-priority-card {
+  -webkit-backdrop-filter: blur(7px) !important;
+  backdrop-filter: blur(7px) !important;
+}
+
+[data-perf='lite'] .iv-intro-signal {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background:
+    linear-gradient(155deg, rgba(8, 14, 26, 0.94), rgba(6, 12, 22, 0.88)) !important;
+}
+
+[data-perf='balanced'] .iv-stream-photon,
+[data-perf='lite'] .iv-stream-photon {
+  display: none;
+}
+
+[data-perf='lite'] .focus-particle-core > canvas {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------------------------
+   5. Ajustes finos del nivel lite
+   ------------------------------------------------------------------------- */
+
+/* Transiciones mas cortas: menos frames repintando cristal y sombras. */
+[data-perf='lite'] .iv-priority-card,
+[data-perf='lite'] .iv-panorama-card,
+[data-perf='lite'] .iv-intro-signal {
+  transition-duration: 220ms;
+}
+
+/* Menos capas de compositor simultaneas en las capas ambientales. */
+[data-perf='lite'] .iv-journey__glow.is-c,
+[data-perf='lite'] .iv-journey__glow.is-d {
+  display: none;
+}
+
+/* Los rayos SVG cubren casi toda la pantalla. Al mover una forma con
+   feGaussianBlur activo el navegador vuelve a rasterizar un area enorme en
+   cada frame. En portatiles se conserva el trazo luminoso sin ese filtro. */
+[data-perf='balanced'] .iv-noise-filter-transition .iv-organic-shape path[filter],
+[data-perf='lite'] .iv-noise-filter-transition .iv-organic-shape path[filter],
+[data-perf='balanced'] .iv-organic-framing path[filter],
+[data-perf='lite'] .iv-organic-framing path[filter] {
+  filter: none !important;
+}
+
+/* -------------------------------------------------------------------------
+   6. Capitulo Cambios
+
+   Este capitulo mezcla entradas 3D, grandes SVG y cristal. Las superficies
+   son casi opacas, de modo que 40px de backdrop blur no aportaban detalle
+   visible pero si obligaban a recomponer cientos de miles de pixeles.
+   ------------------------------------------------------------------------- */
+.focus-changes {
+  contain: paint style;
+  isolation: isolate;
+}
+
+.focus-changes__glass,
+.focus-changes__glass-lite,
+.focus-changes__node {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Un gradiente radial da el mismo halo que blur(140px), pero se rasteriza una
+   vez y despues solo se compone. */
+.focus-changes__ambient-glow {
+  position: absolute;
+  width: min(44vw, 600px);
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
+.focus-changes__ambient-glow.is-purple {
+  top: 25%;
+  right: -40px;
+  background: radial-gradient(circle, rgba(147, 51, 234, 0.22) 0%, rgba(147, 51, 234, 0.09) 38%, transparent 72%);
+}
+
+.focus-changes__ambient-glow.is-cyan {
+  bottom: 33%;
+  left: -40px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.17) 0%, rgba(6, 182, 212, 0.07) 38%, transparent 72%);
+}
+
+[data-perf='high'] .focus-changes__ambient-glow.is-animated.is-purple {
+  animation: focus-changes-purple-drift 10s ease-in-out infinite;
+}
+
+[data-perf='high'] .focus-changes__ambient-glow.is-animated.is-cyan {
+  animation: focus-changes-cyan-drift 12s 1s ease-in-out infinite;
+}
+
+.focus-changes__card-glow {
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, rgba(168, 85, 247, 0.12) 42%, transparent 72%);
+}
+
+@keyframes focus-changes-purple-drift {
+  0%, 100% { opacity: 0.66; transform: translate3d(0, 0, 0) scale(1); }
+  50% { opacity: 1; transform: translate3d(20px, 0, 0) scale(1.08); }
+}
+
+@keyframes focus-changes-cyan-drift {
+  0%, 100% { opacity: 0.62; transform: translate3d(0, 0, 0) scale(1.05); }
+  50% { opacity: 0.95; transform: translate3d(0, -24px, 0) scale(0.98); }
+}
+
+/* El SVG conserva gradientes y siluetas, pero evita cuatro filtros de area
+   completa. Los rayos siguen visibles mediante sus trazos. */
+.focus-changes .iv-organic-shape__body,
+.focus-changes .iv-organic-shape__back-wave,
+.focus-changes .iv-organic-shape path[filter] {
+  filter: none !important;
+}
+
+[data-perf='lite'] .focus-changes__comparison-card,
+[data-perf='lite'] .focus-changes__event-card {
+  transition-duration: 180ms;
+}
+
+[data-perf='lite'] .iv-organic-shape path[filter],
+[data-perf='lite'] .focus-changes .iv-organic-shape path[filter] {
+  filter: none !important;
+}
+
+/* -------------------------------------------------------------------------
+   7. Respeto a "reducir movimiento" del sistema
+   ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

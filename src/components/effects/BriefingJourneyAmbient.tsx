@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useReducedMotion } from 'motion/react';
+import { getPerfConfig, startManagedLoop, subscribePerf, type PerfConfig } from '../../perf';
 
 interface Particle {
   x: number;
@@ -53,9 +54,8 @@ export const BriefingJourneyAmbient: React.FC = () => {
     let width = 0;
     let height = 0;
     let dpr = 1;
-    let frameId = 0;
-    let lastTime = 0;
-    let running = true;
+    let perf: PerfConfig = getPerfConfig();
+    let particleCount = Math.max(6, Math.round(PARTICLE_COUNT * perf.particleScale));
     const particles: Particle[] = [];
 
     const resize = () => {
@@ -69,7 +69,7 @@ export const BriefingJourneyAmbient: React.FC = () => {
 
       width = nextWidth;
       height = nextHeight;
-      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      dpr = Math.min(window.devicePixelRatio || 1, perf.maxDpr);
 
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
@@ -77,30 +77,29 @@ export const BriefingJourneyAmbient: React.FC = () => {
       canvas.style.height = `${height}px`;
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      if (!particles.length) {
-        for (let index = 0; index < PARTICLE_COUNT; index += 1) {
-          particles.push(createParticle(width, height));
-        }
-        return;
+      // Reescala solo las particulas que ya existian; las nuevas nacen ya
+      // dentro del nuevo tamano.
+      const previousCount = particles.length;
+      while (particles.length > particleCount) particles.pop();
+
+      for (let index = 0; index < Math.min(previousCount, particles.length); index += 1) {
+        particles[index].x *= scaleX;
+        particles[index].y *= scaleY;
       }
 
-      for (const particle of particles) {
-        particle.x *= scaleX;
-        particle.y *= scaleY;
+      while (particles.length < particleCount) {
+        particles.push(createParticle(width, height));
       }
     };
 
-    const tick = (time: number) => {
-      if (!running) return;
+    const unsubscribePerf = subscribePerf((next) => {
+      perf = next;
+      particleCount = Math.max(6, Math.round(PARTICLE_COUNT * perf.particleScale));
+      resize();
+    });
 
-      // Skip frames when tab is hidden
-      if (document.hidden) {
-        frameId = window.requestAnimationFrame(tick);
-        return;
-      }
-
-      const dt = Math.min(32, time - lastTime || 16);
-      lastTime = time;
+    const tick = (_time: number, delta: number) => {
+      const dt = Math.min(32, delta);
 
       context.clearRect(0, 0, width, height);
 
@@ -123,32 +122,19 @@ export const BriefingJourneyAmbient: React.FC = () => {
         context.arc(particle.x, particle.y, radius, 0, TAU);
         context.fill();
       }
-
-      frameId = window.requestAnimationFrame(tick);
-    };
-
-    const onVisibility = () => {
-      if (document.hidden) {
-        window.cancelAnimationFrame(frameId);
-        running = false;
-      } else {
-        running = true;
-        lastTime = performance.now();
-        frameId = window.requestAnimationFrame(tick);
-      }
     };
 
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(root);
-    document.addEventListener('visibilitychange', onVisibility);
-    frameId = window.requestAnimationFrame(tick);
+
+    // Pausa automatica fuera de pantalla / con la pestana oculta.
+    const stopLoop = startManagedLoop({ element: root, onFrame: tick });
 
     return () => {
-      running = false;
-      window.cancelAnimationFrame(frameId);
+      stopLoop();
+      unsubscribePerf();
       observer.disconnect();
-      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [reduceMotion]);
 

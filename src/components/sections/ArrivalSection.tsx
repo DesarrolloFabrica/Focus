@@ -12,9 +12,10 @@ import {
   Settings2,
   ShieldCheck,
 } from 'lucide-react';
-import focusObservatory from '../../assets/focus-observatory.png';
-import focusObservatoryLoop from '../../assets/animacion-aro.mp4';
+import focusObservatory from '../../assets/focus-observatory.webp';
+import focusObservatoryLoop from '../../assets/animacion-aro-opt.mp4';
 import { FocusBriefing, FocusCoreState } from '../../types/focus';
+import { AmbientVideo } from '../effects/AmbientVideo';
 import { ArrivalCursorField } from '../effects/ArrivalCursorField';
 import { BriefingJourneyAmbient } from '../effects/BriefingJourneyAmbient';
 import { FocusCore } from '../core/FocusCore';
@@ -89,7 +90,6 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
     Icon: typeof Activity;
     position: string;
     coreState: FocusCoreState;
-    actionLabel: string;
   }> = [
     {
       id: 'priorities',
@@ -99,7 +99,6 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
       Icon: Layers3,
       position: 'top-left',
       coreState: briefing.dimensions.prioritiesCount ? 'attention' : 'observing',
-      actionLabel: 'Ver prioridades',
     },
     {
       id: 'changes',
@@ -109,7 +108,6 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
       Icon: Database,
       position: 'bottom-left',
       coreState: 'change',
-      actionLabel: 'Explorar cambios',
     },
     {
       id: 'anomalies',
@@ -119,7 +117,6 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
       Icon: Radar,
       position: 'top-right',
       coreState: briefing.dimensions.anomaliesCount ? 'analysis' : 'observing',
-      actionLabel: 'Revisar señal',
     },
     {
       id: 'stable',
@@ -129,7 +126,6 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
       Icon: ShieldCheck,
       position: 'bottom-right',
       coreState: 'stable',
-      actionLabel: 'Ver estado',
     },
   ];
 
@@ -195,13 +191,6 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
     }),
   };
 
-  const panoramaViewport = {
-    once: false,
-    amount: 0.22 as const,
-    margin: '0px 0px -10% 0px' as const,
-    root: scrollRef,
-  };
-
   const scrollToBriefingChapter = (id: string) => {
     const target = document.getElementById(id);
     const root = scrollRef.current;
@@ -214,9 +203,12 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
 
   const reveal = (delay: number, y = 14) => ({
     initial: reduceMotion ? false : { opacity: 0, y },
-    animate: { opacity: isFolding ? 0 : 1, y: isFolding ? -18 : 0 },
+    animate: {
+      opacity: isFolding ? 0 : 1,
+      y: isFolding ? -14 : 0,
+    },
     transition: {
-      duration: reduceMotion ? 0.01 : isFolding ? 0.38 : 0.55,
+      duration: reduceMotion ? 0.01 : isFolding ? 0.58 : 0.55,
       delay: reduceMotion ? 0 : isFolding ? 0 : delay,
       ease,
     },
@@ -435,7 +427,7 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
 
                         {/* Flowing Laser Photon Packet */}
                         {!reduceMotion && (
-                          <g>
+                          <g className="iv-stream-photon">
                             <circle r={isLive ? 3.5 : isPriority ? 3.0 : 2.4} fill={color} opacity="0" filter="url(#iv-stream-glow)">
                               <animate
                                 attributeName="opacity"
@@ -496,8 +488,8 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
                 tabIndex={isFolding ? -1 : 0}
                 aria-label={`Núcleo interactivo de FOCUS. Estado: ${activeSignal?.label ?? (isStable ? 'Operación estable' : 'Observando la operación')}`}
                 initial={reduceMotion ? false : { opacity: 0, scale: 0.94 }}
-                animate={{ opacity: isFolding ? 0 : 1, scale: isFolding ? 1.05 : 1 }}
-                transition={{ duration: reduceMotion ? 0.01 : isFolding ? 0.38 : 0.65, delay: reduceMotion ? 0 : isFolding ? 0 : 0.38, ease }}
+                animate={{ opacity: isFolding ? 0 : 1, scale: isFolding ? 0.9 : 1 }}
+                transition={{ duration: reduceMotion ? 0.01 : isFolding ? 0.62 : 0.65, delay: reduceMotion ? 0 : isFolding ? 0 : 0.38, ease }}
               >
                 <FocusCore size="hero" state={coreState} interactive={!isFolding} variant="particle" markStyle="letter" />
                 <div className="iv-intro-core__caption">
@@ -512,7 +504,7 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
               {/* Conexión sutil entre Core y Status Strip */}
               <div className="iv-intro-stage__core-beam" aria-hidden="true" />
 
-              {signalCards.map(({ id, label, value, detail, Icon, position, actionLabel }, index) => {
+              {signalCards.map(({ id, label, value, detail, Icon, position }, index) => {
                 const isActive = activeSignalId === id;
                 return (
                   <motion.article
@@ -530,13 +522,13 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
                     initial={reduceMotion ? false : { opacity: 0, x: position.includes('left') ? -18 : 18, y: 10 }}
                     animate={{
                       opacity: isFolding ? 0 : 1,
-                      x: isFolding ? (position.includes('left') ? -24 : 24) : 0,
-                      y: isFolding ? -12 : 0,
-                      scale: isFolding ? 0.95 : 1,
+                      x: isFolding ? (position.includes('left') ? -20 : 20) : 0,
+                      y: isFolding ? -10 : 0,
+                      scale: isFolding ? 0.94 : 1,
                     }}
                     transition={{
-                      duration: reduceMotion ? 0.01 : isFolding ? 0.36 : 0.5,
-                      delay: reduceMotion ? 0 : isFolding ? 0 : 0.54 + index * 0.07,
+                      duration: reduceMotion ? 0.01 : isFolding ? 0.52 : 0.5,
+                      delay: reduceMotion ? 0 : isFolding ? index * 0.05 : 0.54 + index * 0.07,
                       ease,
                     }}
                   >
@@ -549,17 +541,12 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
                       <Icon />
                     </div>
 
-                    {/* Card Content: Title + Big Number, Description, Action Link with Arrow */}
                     <div className="iv-intro-signal__content">
                       <div className="iv-intro-signal__title-row">
                         <h3 className="iv-intro-signal__title">{label}</h3>
                         <span className="iv-intro-signal__num" aria-label={`${value} ${label}`}>{value}</span>
                       </div>
                       <p className="iv-intro-signal__desc">{detail}</p>
-                      <div className="iv-intro-signal__action">
-                        <span>{actionLabel}</span>
-                        <ArrowRight aria-hidden="true" />
-                      </div>
                     </div>
 
                     {/* Dedicated Interface Socket (Connection Anchor Point) */}
@@ -632,9 +619,8 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
                   <motion.div
                     className="iv-shell iv-panorama__layout"
                     variants={panoramaSectionVariants}
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={panoramaViewport}
+                    initial={false}
+                    animate="visible"
                   >
                     <div className="iv-panorama__main">
                       <div className="iv-panorama__intro">
@@ -689,9 +675,8 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
                             aria-label={`${label}: ${value}. ${detail}`}
                             custom={index}
                             variants={panoramaCardVariants}
-                            initial="hidden"
-                            whileInView="visible"
-                            viewport={panoramaViewport}
+                            initial={false}
+                            animate="visible"
                           >
                             <div className="iv-panorama-card__glow" aria-hidden="true" />
                             <div className="iv-panorama-card__orb" aria-hidden="true" />
@@ -718,24 +703,17 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
                         {reduceMotion ? (
                           <img src={focusObservatory} alt="FOCUS Observatory 3D Portal" />
                         ) : (
-                          <video
+                          <AmbientVideo
                             className="iv-panorama__stage-media"
                             src={focusObservatoryLoop}
                             poster={focusObservatory}
-                            autoPlay
-                            loop
-                            muted
-                            playsInline
-                            preload="auto"
-                            aria-hidden="true"
                           />
                         )}
                       </div>
                       <motion.span
                         className="iv-panorama__live"
-                        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={panoramaViewport}
+                        initial={false}
+                        animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: reduceMotion ? 0 : 0.45, ease: EASE_OUT_SOFT }}
                       >
                         <i /> FOCUS / LIVE

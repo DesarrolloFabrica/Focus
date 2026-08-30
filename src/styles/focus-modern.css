@@ -1616,6 +1616,21 @@
     inset 0 -3px 22px rgba(249, 115, 22, 0.48),
     inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
+.iv-intro-signal--priorities .iv-intro-signal__icon-box {
+  color: #fb923c;
+  border-color: rgba(251, 146, 60, 0.42);
+  background:
+    linear-gradient(145deg, rgba(251, 146, 60, 0.22) 0%, rgba(251, 146, 60, 0.06) 100%),
+    rgba(8, 14, 26, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 200, 150, 0.22),
+    0 4px 14px rgba(234, 88, 12, 0.28);
+}
+.iv-intro-signal--priorities:hover .iv-intro-signal__icon-box,
+.iv-intro-signal--priorities.is-active .iv-intro-signal__icon-box {
+  border-color: rgba(251, 146, 60, 0.62);
+  color: #fdba74;
+}
 
 /* 2. QUÉ CAMBIÓ (Electric Cobalt Blue Underglow - Exact Reference 2) */
 .iv-intro-signal--changes {
@@ -1638,6 +1653,21 @@
     0 32px 68px -10px rgba(37, 99, 235, 0.52),
     inset 0 -3px 22px rgba(59, 130, 246, 0.48),
     inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.iv-intro-signal--changes .iv-intro-signal__icon-box {
+  color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.42);
+  background:
+    linear-gradient(145deg, rgba(96, 165, 250, 0.22) 0%, rgba(96, 165, 250, 0.06) 100%),
+    rgba(8, 14, 26, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(186, 214, 255, 0.22),
+    0 4px 14px rgba(37, 99, 235, 0.28);
+}
+.iv-intro-signal--changes:hover .iv-intro-signal__icon-box,
+.iv-intro-signal--changes.is-active .iv-intro-signal__icon-box {
+  border-color: rgba(96, 165, 250, 0.62);
+  color: #93c5fd;
 }
 
 /* 3. ANOMALÍAS (Neon Violet / Purple Underglow) */
@@ -1662,6 +1692,21 @@
     inset 0 -3px 22px rgba(168, 85, 247, 0.48),
     inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
+.iv-intro-signal--anomalies .iv-intro-signal__icon-box {
+  color: #c084fc;
+  border-color: rgba(192, 132, 252, 0.42);
+  background:
+    linear-gradient(145deg, rgba(192, 132, 252, 0.22) 0%, rgba(192, 132, 252, 0.06) 100%),
+    rgba(8, 14, 26, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(226, 196, 255, 0.22),
+    0 4px 14px rgba(147, 51, 234, 0.28);
+}
+.iv-intro-signal--anomalies:hover .iv-intro-signal__icon-box,
+.iv-intro-signal--anomalies.is-active .iv-intro-signal__icon-box {
+  border-color: rgba(192, 132, 252, 0.62);
+  color: #d8b4fe;
+}
 
 /* 4. ESTABLE (Neon Emerald / Mint Green Underglow - Exact Reference 3) */
 .iv-intro-signal--stable {
@@ -1685,6 +1730,21 @@
     inset 0 -3px 22px rgba(34, 197, 94, 0.48),
     inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
+.iv-intro-signal--stable .iv-intro-signal__icon-box {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.42);
+  background:
+    linear-gradient(145deg, rgba(74, 222, 128, 0.22) 0%, rgba(74, 222, 128, 0.06) 100%),
+    rgba(8, 14, 26, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(187, 247, 208, 0.22),
+    0 4px 14px rgba(22, 163, 74, 0.28);
+}
+.iv-intro-signal--stable:hover .iv-intro-signal__icon-box,
+.iv-intro-signal--stable.is-active .iv-intro-signal__icon-box {
+  border-color: rgba(74, 222, 128, 0.62);
+  color: #86efac;
+}
 
 /* Floating Embossed Glass Icon Vessel */
 .iv-intro-signal__icon-box {
@@ -1703,20 +1763,19 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
     0 4px 14px rgba(0, 0, 0, 0.45);
-  color: #ffffff;
-  transition: transform 0.3s ease, border-color 0.3s ease;
+  transition: transform 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .iv-intro-signal:hover .iv-intro-signal__icon-box,
 .iv-intro-signal.is-active .iv-intro-signal__icon-box {
   transform: scale(1.05);
-  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .iv-intro-signal__icon-box svg {
   display: block;
   width: 17px;
   height: 17px;
+  stroke: currentColor;
 }
 
 /* Card Content Container */
@@ -4461,8 +4520,8 @@
 /* ===== 04 / 07 · Anomaly Explorer ===== */
 .aex-section {
   position: relative;
-  height: 320svh;
-  min-height: 2200px;
+  height: 760vh;
+  min-height: 4400px;
   overflow: visible;
   color: #f8f9ff;
   background: #030610;
@@ -5107,7 +5166,7 @@
 }
 
 @media (max-width: 720px) {
-  .aex-section { height: 360svh; min-height: 2400px; }
+  .aex-section { height: 820vh; min-height: 4800px; }
   .aex-sticky { height: calc(100svh - 74px); min-height: 0; max-height: none; }
   .aex-stage { padding: 18px 16px 14px; }
   .aex-stage__topline { font-size: 6.5px; }

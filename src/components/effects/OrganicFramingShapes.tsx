@@ -4,6 +4,11 @@ export type OrganicFramingVariant = 'signal-filter' | 'why-bridge';
 
 interface OrganicFramingShapesProps {
   active?: boolean;
+  /**
+   * Los gradientes SVG animados fuerzan a repintar formas muy grandes en cada
+   * frame. Se pueden congelar conservando exactamente la misma composicion.
+   */
+  animated?: boolean;
   variant?: OrganicFramingVariant;
   className?: string;
 }
@@ -24,6 +29,7 @@ const RIGHT_PATHS = {
 
 export const OrganicFramingShapes: React.FC<OrganicFramingShapesProps> = ({
   active = true,
+  animated = true,
   variant = 'signal-filter',
   className = '',
 }) => {
@@ -38,7 +44,7 @@ export const OrganicFramingShapes: React.FC<OrganicFramingShapesProps> = ({
     : undefined;
 
   return (
-    <div className={`iv-organic-framing ${className}`.trim()} aria-hidden="true">
+    <div className={`iv-organic-framing${animated ? '' : ' is-static'} ${className}`.trim()} aria-hidden="true">
       {isWhy && (
         <div
           className="iv-organic-framing__ambient"
@@ -86,14 +92,16 @@ export const OrganicFramingShapes: React.FC<OrganicFramingShapesProps> = ({
                     <stop offset="64%" stopColor="#93c5fd" stopOpacity="0.55" />
                     <stop offset="84%" stopColor="#818cf8" stopOpacity="0.06" />
                     <stop offset="100%" stopColor="#818cf8" stopOpacity="0" />
-                    <animateTransform
-                      attributeName="gradientTransform"
-                      type="translate"
-                      values="-0.9,0.9; 0.9,-0.9; -0.9,0.9"
-                      keyTimes="0; 0.5; 1"
-                      dur="5.5s"
-                      repeatCount="indefinite"
-                    />
+                    {animated && (
+                      <animateTransform
+                        attributeName="gradientTransform"
+                        type="translate"
+                        values="-0.9,0.9; 0.9,-0.9; -0.9,0.9"
+                        keyTimes="0; 0.5; 1"
+                        dur="5.5s"
+                        repeatCount="indefinite"
+                      />
+                    )}
                   </linearGradient>
                 </>
               ) : (
@@ -130,14 +138,16 @@ export const OrganicFramingShapes: React.FC<OrganicFramingShapesProps> = ({
                     <stop offset="64%" stopColor="#93c5fd" stopOpacity="0.6" />
                     <stop offset="84%" stopColor="#818cf8" stopOpacity="0.06" />
                     <stop offset="100%" stopColor="#818cf8" stopOpacity="0" />
-                    <animateTransform
-                      attributeName="gradientTransform"
-                      type="translate"
-                      values="-0.9,0.9; 0.9,-0.9; -0.9,0.9"
-                      keyTimes="0; 0.5; 1"
-                      dur="5.5s"
-                      repeatCount="indefinite"
-                    />
+                    {animated && (
+                      <animateTransform
+                        attributeName="gradientTransform"
+                        type="translate"
+                        values="-0.9,0.9; 0.9,-0.9; -0.9,0.9"
+                        keyTimes="0; 0.5; 1"
+                        dur="5.5s"
+                        repeatCount="indefinite"
+                      />
+                    )}
                   </linearGradient>
                 </>
               )}
@@ -201,14 +211,16 @@ export const OrganicFramingShapes: React.FC<OrganicFramingShapesProps> = ({
                     <stop offset="64%" stopColor="#c4b5fd" stopOpacity="0.55" />
                     <stop offset="84%" stopColor="#818cf8" stopOpacity="0.06" />
                     <stop offset="100%" stopColor="#818cf8" stopOpacity="0" />
-                    <animateTransform
-                      attributeName="gradientTransform"
-                      type="translate"
-                      values="0.9,-0.9; -0.9,0.9; 0.9,-0.9"
-                      keyTimes="0; 0.5; 1"
-                      dur="5.5s"
-                      repeatCount="indefinite"
-                    />
+                    {animated && (
+                      <animateTransform
+                        attributeName="gradientTransform"
+                        type="translate"
+                        values="0.9,-0.9; -0.9,0.9; 0.9,-0.9"
+                        keyTimes="0; 0.5; 1"
+                        dur="5.5s"
+                        repeatCount="indefinite"
+                      />
+                    )}
                   </linearGradient>
                 </>
               ) : (
@@ -245,14 +257,16 @@ export const OrganicFramingShapes: React.FC<OrganicFramingShapesProps> = ({
                     <stop offset="64%" stopColor="#818cf8" stopOpacity="0.6" />
                     <stop offset="84%" stopColor="#38bdf8" stopOpacity="0.06" />
                     <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
-                    <animateTransform
-                      attributeName="gradientTransform"
-                      type="translate"
-                      values="0.9,-0.9; -0.9,0.9; 0.9,-0.9"
-                      keyTimes="0; 0.5; 1"
-                      dur="5.5s"
-                      repeatCount="indefinite"
-                    />
+                    {animated && (
+                      <animateTransform
+                        attributeName="gradientTransform"
+                        type="translate"
+                        values="0.9,-0.9; -0.9,0.9; 0.9,-0.9"
+                        keyTimes="0; 0.5; 1"
+                        dur="5.5s"
+                        repeatCount="indefinite"
+                      />
+                    )}
                   </linearGradient>
                 </>
               )}

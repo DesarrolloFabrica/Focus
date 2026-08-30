@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
+import { isSubtreeInView, observeInView, usePerfConfig } from '../../perf';
 import { useIntroScrollRoot } from '../sections/ArrivalSection';
 
 interface NoiseFilterTransitionProps {
@@ -51,6 +52,8 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
   const containerRef = useRef<HTMLElement>(null);
   const scrollRootRef = useIntroScrollRoot();
   const reduceMotion = !!useReducedMotion();
+  const perf = usePerfConfig();
+  const useFullDetailMotion = !reduceMotion && perf.tier === 'high';
   const [phase, setPhase] = useState<NoisePhase>('phase1');
   const [isSectionActive, setIsSectionActive] = useState(false);
   const [isSectionSettled, setIsSectionSettled] = useState(false);
@@ -64,21 +67,37 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
     let lastPhase: NoisePhase | null = null;
     let lastActive = false;
     let lastSettled = false;
+    let lastViewportHeight = -1;
+    // Mientras la escena no esta cerca del viewport no hace falta medirla.
+    let isNearViewport = true;
+    let pendingFinalPass = false;
 
     const handleScroll = () => {
       cancelAnimationFrame(frameId);
       frameId = window.requestAnimationFrame(() => {
+        if (!isSubtreeInView(container) && !pendingFinalPass) return;
+        if (!isNearViewport && !pendingFinalPass) return;
+        pendingFinalPass = false;
+
         const containerRect = container.getBoundingClientRect();
         const rootTop = root ? root.getBoundingClientRect().top : 0;
         const rootHeight = root ? root.clientHeight : window.innerHeight;
         const rootBottom = rootTop + rootHeight;
         const totalDistance = containerRect.height - rootHeight;
 
-        container.style.setProperty('--iv-transition-viewport-height', `${rootHeight}px`);
+        // Escribir la variable en cada frame invalidaba el estilo de todo el
+        // subarbol; solo se actualiza cuando cambia de verdad.
+        if (rootHeight !== lastViewportHeight) {
+          lastViewportHeight = rootHeight;
+          container.style.setProperty('--iv-transition-viewport-height', `${rootHeight}px`);
+        }
 
         // The scene is settled only while its sticky viewport is fully framed.
         // This gives the side shapes a clear enter/exit boundary in both directions.
-        const edgeTolerance = 2;
+        // Los saltos entre capitulos dejan un margen visual de 8px. Con una
+        // tolerancia de 2px la escena quedaba marcada como "no asentada" y
+        // ocultaba todo su contenido, produciendo un fotograma negro.
+        const edgeTolerance = 12;
         const isSettled =
           containerRect.top <= rootTop + edgeTolerance &&
           containerRect.bottom >= rootBottom - edgeTolerance;
@@ -124,9 +143,24 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
     const target = root ?? window;
     target.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', handleScroll);
+
+    const stopObserving = observeInView(
+      container,
+      (inView) => {
+        isNearViewport = inView;
+        // Al salir de pantalla se permite una ultima pasada para que los
+        // estados queden en reposo; despues deja de medirse.
+        if (!inView) pendingFinalPass = true;
+        handleScroll();
+      },
+      '200px',
+      root,
+    );
+
     handleScroll();
 
     return () => {
+      stopObserving();
       target.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleScroll);
       cancelAnimationFrame(frameId);
@@ -157,27 +191,31 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
       hidden: {},
       visible: {
         transition: {
-          delayChildren: reduceMotion ? 0 : 0.04,
-          staggerChildren: reduceMotion ? 0 : 0.025,
+          delayChildren: reduceMotion ? 0 : useFullDetailMotion ? 0.04 : 0.02,
+          staggerChildren: reduceMotion ? 0 : useFullDetailMotion ? 0.025 : 0.012,
         },
       },
     }),
-    [reduceMotion],
+    [reduceMotion, useFullDetailMotion],
   );
 
   const letterReveal: Variants = useMemo(
     () => ({
-      hidden: reduceMotion ? { opacity: 1 } : { opacity: 0, y: 24, filter: 'blur(7px)' },
+      hidden: reduceMotion
+        ? { opacity: 1 }
+        : useFullDetailMotion
+          ? { opacity: 0, y: 24, filter: 'blur(7px)' }
+          : { opacity: 0, y: 12, filter: 'none' },
       visible: reduceMotion
         ? { opacity: 1 }
         : {
             opacity: 1,
             y: 0,
-            filter: 'blur(0px)',
-            transition: { duration: 0.52, ease: EASE_OUT_EXPO },
+            filter: 'none',
+            transition: { duration: useFullDetailMotion ? 0.52 : 0.36, ease: EASE_OUT_EXPO },
           },
     }),
-    [reduceMotion],
+    [reduceMotion, useFullDetailMotion],
   );
 
   const subFade: Variants = useMemo(
@@ -291,14 +329,16 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                   <stop offset="64%" stopColor="#93c5fd" stopOpacity="0.6" />
                   <stop offset="84%" stopColor="#818cf8" stopOpacity="0.06" />
                   <stop offset="100%" stopColor="#818cf8" stopOpacity="0" />
-                  <animateTransform
-                    attributeName="gradientTransform"
-                    type="translate"
-                    values="-0.9,0.9; 0.9,-0.9; -0.9,0.9"
-                    keyTimes="0; 0.5; 1"
-                    dur="5.5s"
-                    repeatCount="indefinite"
-                  />
+                  {useFullDetailMotion && (
+                    <animateTransform
+                      attributeName="gradientTransform"
+                      type="translate"
+                      values="-0.9,0.9; 0.9,-0.9; -0.9,0.9"
+                      keyTimes="0; 0.5; 1"
+                      dur="5.5s"
+                      repeatCount="indefinite"
+                    />
+                  )}
                 </linearGradient>
 
                 {/* Atmospheric Neon Ray Bloom Filter */}
@@ -428,14 +468,16 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                   <stop offset="64%" stopColor="#818cf8" stopOpacity="0.6" />
                   <stop offset="84%" stopColor="#38bdf8" stopOpacity="0.06" />
                   <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
-                  <animateTransform
-                    attributeName="gradientTransform"
-                    type="translate"
-                    values="0.9,-0.9; -0.9,0.9; 0.9,-0.9"
-                    keyTimes="0; 0.5; 1"
-                    dur="5.5s"
-                    repeatCount="indefinite"
-                  />
+                  {useFullDetailMotion && (
+                    <animateTransform
+                      attributeName="gradientTransform"
+                      type="translate"
+                      values="0.9,-0.9; -0.9,0.9; 0.9,-0.9"
+                      keyTimes="0; 0.5; 1"
+                      dur="5.5s"
+                      repeatCount="indefinite"
+                    />
+                  )}
                 </linearGradient>
 
                 {/* Atmospheric Neon Ray Bloom Filter */}

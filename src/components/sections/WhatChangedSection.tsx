@@ -17,7 +17,9 @@ import {
   Layers,
 } from 'lucide-react';
 import { FocusChange, FocusChangeEvent } from '../../types/focus';
+import { usePerfConfig } from '../../perf';
 import { OrganicFramingShapes } from '../effects/OrganicFramingShapes';
+import { useIntroScrollRoot } from './ArrivalSection';
 
 interface WhatChangedSectionProps {
   changes: FocusChange;
@@ -107,31 +109,39 @@ function getStatusConfig(status: FocusChangeEvent['status']): StatusConfig {
 
 export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes, onContinue }) => {
   const reduceMotion = !!useReducedMotion();
+  const perf = usePerfConfig();
+  const scrollRootRef = useIntroScrollRoot();
+  const allowAmbientMotion = !reduceMotion && perf.tier === 'high';
 
-  // Dramatic tilted / angled swing entrance animations that re-trigger on two-way scroll
+  const scrollViewport = {
+    once: false as const,
+    amount: 0.5 as const,
+    margin: '0px 0px -12% 0px' as const,
+    root: scrollRootRef,
+  };
+
+  const cardViewport = {
+    once: false as const,
+    amount: 0.42 as const,
+    margin: '0px 0px -10% 0px' as const,
+    root: scrollRootRef,
+  };
+
+  // Entradas 2D: mover una superficie con cristal mientras rota/escala obliga
+  // a rasterizarla varias veces. La traslacion corta conserva la narrativa y
+  // permanece en el compositor incluso antes de que el monitor degrade el tier.
   const dramaticSlideLeft: Variants = {
     hidden: reduceMotion
       ? { opacity: 1 }
-      : {
-          opacity: 0,
-          x: -160,
-          y: 45,
-          rotateZ: -9,
-          rotateY: 15,
-          scale: 0.86,
-        },
+      : { opacity: 0, x: -32, y: 16 },
     visible: {
       opacity: 1,
       x: 0,
       y: 0,
-      rotateZ: 0,
-      rotateY: 0,
-      scale: 1,
       transition: {
-        type: 'spring',
-        damping: 18,
-        stiffness: 90,
-        mass: 0.85,
+        type: 'tween',
+        duration: 0.68,
+        ease: [0.22, 1, 0.36, 1],
       },
     },
   };
@@ -139,40 +149,30 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes,
   const dramaticSlideRight: Variants = {
     hidden: reduceMotion
       ? { opacity: 1 }
-      : {
-          opacity: 0,
-          x: 160,
-          y: 45,
-          rotateZ: 9,
-          rotateY: -15,
-          scale: 0.86,
-        },
+      : { opacity: 0, x: 32, y: 16 },
     visible: {
       opacity: 1,
       x: 0,
       y: 0,
-      rotateZ: 0,
-      rotateY: 0,
-      scale: 1,
       transition: {
-        type: 'spring',
-        damping: 18,
-        stiffness: 90,
-        mass: 0.85,
+        type: 'tween',
+        duration: 0.68,
+        ease: [0.22, 1, 0.36, 1],
       },
     },
   };
 
   const dramaticFadeUp: Variants = {
-    hidden: reduceMotion ? { opacity: 1 } : { opacity: 0, y: 35, scale: 0.94 },
+    hidden: reduceMotion
+      ? { opacity: 1 }
+      : { opacity: 0, y: 18 },
     visible: {
       opacity: 1,
       y: 0,
-      scale: 1,
       transition: {
-        type: 'spring',
-        damping: 20,
-        stiffness: 100,
+        type: 'tween',
+        duration: 0.62,
+        ease: [0.22, 1, 0.36, 1],
       },
     },
   };
@@ -180,36 +180,36 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes,
   return (
     <section
       id="section-chapter-changes"
-      className="relative min-h-screen py-24 sm:py-32 overflow-hidden select-none"
+      className="focus-changes relative min-h-screen py-28 sm:py-36 overflow-hidden select-none"
       data-chapter="changes"
       aria-label="Capítulo Cambios: Desde tu última visita"
-      style={{ perspective: '1200px' }}
     >
       {/* RICH MULTI-LAYERED CYBERNETIC BACKGROUND */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
         {/* Layer 1: Organic Framing Ambient Waveforms */}
-        <OrganicFramingShapes variant="why-bridge" className="opacity-60 scale-105" />
+        <OrganicFramingShapes
+          variant="why-bridge"
+          animated={false}
+          className="focus-changes__organic opacity-60 scale-105"
+        />
 
         {/* Layer 2: Technical Grid Matrix with Coordinate Crosshairs */}
         <div className="absolute inset-0 opacity-[0.045] bg-[radial-gradient(#a855f7_1px,transparent_1px)] [background-size:40px_40px]" />
         
-        {/* Layer 3: Laser Scanline moving down gently */}
-        <motion.div
-          className="absolute left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-purple-400/25 to-transparent shadow-[0_0_15px_rgba(168,85,247,0.4)]"
-          animate={reduceMotion ? false : { top: ['0%', '100%'] }}
-          transition={{ duration: 16, repeat: Infinity, ease: 'linear' }}
-        />
+        {/* Layer 3: Static scanline. Animating a section-sized wrapper created
+            a very large compositor layer for a one-pixel decoration. */}
+        <div className="focus-changes__scanline-static absolute left-0 right-0 top-[38%] h-px bg-gradient-to-r from-transparent via-purple-400/15 to-transparent" />
 
         {/* Layer 4: Orbital Cybernetic Radar Rings in Background */}
         <div className="absolute -top-12 -right-12 w-[650px] h-[650px] pointer-events-none opacity-20">
           <motion.div
             className="w-full h-full rounded-full border border-purple-500/30 border-dashed"
-            animate={reduceMotion ? false : { rotate: 360 }}
+            animate={allowAmbientMotion ? { rotate: 360 } : false}
             transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
           />
           <motion.div
             className="absolute inset-16 rounded-full border border-cyan-400/20"
-            animate={reduceMotion ? false : { rotate: -360 }}
+            animate={allowAmbientMotion ? { rotate: -360 } : false}
             transition={{ duration: 45, repeat: Infinity, ease: 'linear' }}
           />
           <div className="absolute inset-32 rounded-full border border-purple-300/15" />
@@ -218,23 +218,15 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes,
         <div className="absolute -bottom-20 -left-20 w-[550px] h-[550px] pointer-events-none opacity-15">
           <motion.div
             className="w-full h-full rounded-full border border-cyan-400/30 border-dashed"
-            animate={reduceMotion ? false : { rotate: -360 }}
+            animate={allowAmbientMotion ? { rotate: -360 } : false}
             transition={{ duration: 50, repeat: Infinity, ease: 'linear' }}
           />
           <div className="absolute inset-20 rounded-full border border-purple-400/20" />
         </div>
 
         {/* Layer 5: Dynamic Volumetric Nebula Glows */}
-        <motion.div
-          animate={reduceMotion ? false : { opacity: [0.15, 0.28, 0.15], scale: [1, 1.15, 1], x: [0, 20, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute top-1/4 -right-10 w-[600px] h-[600px] bg-purple-600/25 rounded-full blur-[140px]"
-        />
-        <motion.div
-          animate={reduceMotion ? false : { opacity: [0.12, 0.24, 0.12], scale: [1.1, 0.95, 1.1], y: [0, -30, 0] }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-          className="absolute bottom-1/3 -left-10 w-[600px] h-[600px] bg-cyan-500/20 rounded-full blur-[140px]"
-        />
+        <div className={`focus-changes__ambient-glow is-purple${allowAmbientMotion ? ' is-animated' : ''}`} />
+        <div className={`focus-changes__ambient-glow is-cyan${allowAmbientMotion ? ' is-animated' : ''}`} />
 
         {/* Layer 6: Ambient Technical HUD Markers & Watermarks */}
         <div className="absolute top-28 left-10 font-mono text-[10px] text-purple-400/30 tracking-widest hidden xl:block">
@@ -248,41 +240,44 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes,
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-6 sm:px-8">
-        
-        {/* Chapter Header with Re-triggering Animation */}
-        <motion.header
-          className="mb-20 sm:mb-24 text-center max-w-3xl mx-auto"
-          variants={dramaticFadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: false, amount: 0.3 }}
-        >
-          {/* Chapter Step Pill */}
-          <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-[#060e1d]/90 border border-purple-500/25 shadow-[0_4px_24px_rgba(168,85,247,0.2)] backdrop-blur-xl mb-6">
-            <span className="text-purple-400 font-mono text-xs font-semibold tracking-wider">04 / 07</span>
-            <div className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_10px_#c084fc] animate-pulse" />
-            <strong className="text-white text-xs tracking-widest uppercase font-medium">Cambios</strong>
+
+        {/* Intro compacta: el titulo se queda arriba un momento sin dejar un vacio enorme */}
+        <div className="relative h-[44vh] min-h-[300px] w-full contain-paint">
+          <div className="sticky top-0 pt-4 sm:pt-6 pb-4">
+            <motion.header
+              className="text-center max-w-3xl mx-auto"
+              variants={dramaticFadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={scrollViewport}
+            >
+              <div className="focus-changes__glass-lite inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-[#060e1d]/90 border border-purple-500/25 shadow-[0_4px_24px_rgba(168,85,247,0.2)] mb-6">
+                <span className="text-purple-400 font-mono text-xs font-semibold tracking-wider">04 / 07</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_10px_#c084fc] animate-pulse" />
+                <strong className="text-white text-xs tracking-widest uppercase font-medium">Cambios</strong>
+              </div>
+
+              <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white mb-5 leading-[1.08] bg-gradient-to-b from-white via-slate-100 to-purple-200 bg-clip-text text-transparent drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
+                Desde tu última visita.
+              </h2>
+
+              <p className="text-base sm:text-lg lg:text-xl text-slate-300 font-light max-w-2xl mx-auto leading-relaxed">
+                FOCUS analizó la evolución del contexto operacional. Esto es lo que se transformó de forma acumulativa.
+              </p>
+            </motion.header>
           </div>
-
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white mb-5 leading-[1.08] bg-gradient-to-b from-white via-slate-100 to-purple-200 bg-clip-text text-transparent drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
-            Desde tu última visita.
-          </h2>
-
-          <p className="text-base sm:text-lg lg:text-xl text-slate-300 font-light max-w-2xl mx-auto leading-relaxed">
-            FOCUS analizó la evolución del contexto operacional. Esto es lo que se transformó de forma acumulativa.
-          </p>
-        </motion.header>
+        </div>
 
         {/* State Comparison Panel (Antes vs Ahora with Dramatic Swing Entrance & Two-Way Scroll) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-6 lg:gap-8 items-center mb-28 sm:mb-36 relative">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-6 lg:gap-8 items-center mb-32 sm:mb-40 relative">
           
           {/* BEFORE CARD (Dramatic Left Tilted Slide-In) */}
           <motion.article
-            className="group relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#0a1426]/90 via-[#060d1b]/90 to-[#03070f]/90 border border-white/12 backdrop-blur-2xl p-7 sm:p-9 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-300 hover:border-white/30 hover:shadow-[0_25px_60px_rgba(0,0,0,0.7)]"
+            className="focus-changes__glass focus-changes__comparison-card group relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#0a1426]/90 via-[#060d1b]/90 to-[#03070f]/90 border border-white/12 p-7 sm:p-9 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-[transform,border-color,box-shadow] duration-300 hover:border-white/30 hover:shadow-[0_25px_60px_rgba(0,0,0,0.7)]"
             variants={dramaticSlideLeft}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, amount: 0.25 }}
+            viewport={cardViewport}
           >
             {/* Top Specular Rim */}
             <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-slate-300/40 to-transparent" />
@@ -317,10 +312,10 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes,
           <div className="flex flex-col lg:flex-row items-center justify-center py-2 lg:py-0">
             <div className="hidden lg:block w-8 h-[2px] bg-gradient-to-r from-slate-600/40 via-purple-500/50 to-purple-500" />
             <motion.div
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#120822] border border-purple-500/50 shadow-[0_0_24px_rgba(168,85,247,0.45)] backdrop-blur-xl z-20 text-xs font-mono font-bold text-purple-300 my-2 lg:my-0"
+              className="focus-changes__glass-lite inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#120822] border border-purple-500/50 shadow-[0_0_24px_rgba(168,85,247,0.45)] z-20 text-xs font-mono font-bold text-purple-300 my-2 lg:my-0"
               initial={reduceMotion ? false : { scale: 0.7, opacity: 0 }}
               whileInView={{ scale: 1, opacity: 1 }}
-              viewport={{ once: false, amount: 0.3 }}
+              viewport={cardViewport}
               transition={{ type: 'spring', damping: 15, stiffness: 120 }}
             >
               <TrendingUp className="w-3.5 h-3.5 text-purple-400 animate-bounce" />
@@ -331,15 +326,15 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes,
 
           {/* CURRENT CARD (Dramatic Right Tilted Slide-In) */}
           <motion.article
-            className="group relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#1a0c2e]/95 via-[#0e071c]/95 to-[#06030c]/95 border border-purple-500/40 backdrop-blur-2xl p-7 sm:p-9 shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_35px_rgba(168,85,247,0.2)] transition-all duration-300 hover:border-purple-400/70 hover:shadow-[0_25px_60px_rgba(0,0,0,0.8),0_0_45px_rgba(168,85,247,0.3)]"
+            className="focus-changes__glass focus-changes__comparison-card group relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#1a0c2e]/95 via-[#0e071c]/95 to-[#06030c]/95 border border-purple-500/40 p-7 sm:p-9 shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_35px_rgba(168,85,247,0.2)] transition-[transform,border-color,box-shadow] duration-300 hover:border-purple-400/70 hover:shadow-[0_25px_60px_rgba(0,0,0,0.8),0_0_45px_rgba(168,85,247,0.3)]"
             variants={dramaticSlideRight}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, amount: 0.25 }}
+            viewport={cardViewport}
           >
             {/* Top Specular Rim */}
             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-purple-400 to-transparent" />
-            <div className="absolute -top-24 -right-24 w-56 h-56 bg-purple-500/30 rounded-full blur-[65px] pointer-events-none" />
+            <div className="focus-changes__card-glow absolute -top-24 -right-24 w-56 h-56 rounded-full pointer-events-none" />
 
             <div className="flex items-center justify-between gap-3 mb-4 relative z-10">
               <div className="flex items-center gap-2.5">
@@ -371,22 +366,24 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes,
         </div>
 
         {/* Chronological Vertical Timeline with Noticeable Angled Entrances on Two-Way Scroll */}
-        <div className="relative mb-28 sm:mb-36">
+        <div className="relative mb-32 sm:mb-40">
           
           {/* Central Cybernetic Spine with Flowing Laser Pulse */}
           <div
             className="absolute left-6 md:left-1/2 top-0 bottom-0 w-[2px] bg-gradient-to-b from-purple-500/70 via-cyan-400/50 to-transparent md:-translate-x-1/2"
             aria-hidden="true"
           >
-            {/* Traveling laser pulse down the spine */}
+            {/* Pulso que recorre la espina: transform en lugar de `top`. */}
             <motion.div
-              className="w-full h-24 bg-gradient-to-b from-transparent via-cyan-300 to-transparent shadow-[0_0_12px_#67e8f9]"
-              animate={reduceMotion ? false : { top: ['0%', '100%'] }}
+              className="absolute inset-0 pointer-events-none"
+              animate={allowAmbientMotion ? { y: ['0%', '100%'] } : false}
               transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}
-            />
+            >
+              <div className="absolute left-0 top-0 w-full h-24 bg-gradient-to-b from-transparent via-cyan-300 to-transparent shadow-[0_0_12px_#67e8f9]" />
+            </motion.div>
           </div>
 
-          <div className="space-y-14 sm:space-y-20">
+          <div className="space-y-16 sm:space-y-24">
             {changes.changes.map((change, index) => {
               const isEven = index % 2 === 0;
               const config = getStatusConfig(change.status);
@@ -408,10 +405,10 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes,
                     variants={cardVariant}
                     initial="hidden"
                     whileInView="visible"
-                    viewport={{ once: false, amount: 0.25 }}
+                    viewport={cardViewport}
                   >
                     <div
-                      className={`group relative p-6 sm:p-8 rounded-[1.85rem] bg-gradient-to-br from-[#0a1426]/95 via-[#060c18]/95 to-[#03060d]/95 border ${config.cardBorder} backdrop-blur-2xl shadow-[0_20px_45px_rgba(0,0,0,0.6)] transition-all duration-300 hover:translate-y-[-5px] hover:shadow-[0_25px_55px_rgba(0,0,0,0.8)]`}
+                      className={`focus-changes__glass focus-changes__event-card group relative p-6 sm:p-8 rounded-[1.85rem] bg-gradient-to-br from-[#0a1426]/95 via-[#060c18]/95 to-[#03060d]/95 border ${config.cardBorder} shadow-[0_20px_45px_rgba(0,0,0,0.6)] transition-[transform,border-color,box-shadow] duration-300 hover:translate-y-[-5px] hover:shadow-[0_25px_55px_rgba(0,0,0,0.8)]`}
                     >
                       {/* Top Specular Rim with Semantic Gradient */}
                       <div className={`absolute top-0 left-6 right-6 h-[1.5px] bg-gradient-to-r ${config.accentGradient}`} />
@@ -461,11 +458,11 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes,
                     className="absolute left-6 md:left-1/2 top-6 md:top-1/2 w-12 h-12 -translate-x-1/2 md:-translate-y-1/2 flex items-center justify-center z-20"
                     initial={reduceMotion ? false : { scale: 0, opacity: 0, rotate: -45 }}
                     whileInView={{ scale: 1, opacity: 1, rotate: 0 }}
-                    viewport={{ once: false, amount: 0.3 }}
+                    viewport={cardViewport}
                     transition={{ type: 'spring', damping: 15, stiffness: 120 }}
                   >
                     <div
-                      className={`w-full h-full rounded-2xl ${config.nodeBg} border ${config.nodeBorder} flex items-center justify-center backdrop-blur-xl shadow-lg transition-transform hover:scale-115`}
+                      className={`focus-changes__node w-full h-full rounded-2xl ${config.nodeBg} border ${config.nodeBorder} flex items-center justify-center shadow-lg transition-transform hover:scale-115`}
                     >
                       <NodeIcon className={`w-5 h-5 ${config.nodeIconColor}`} />
                     </div>
@@ -482,9 +479,9 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes,
           variants={dramaticFadeUp}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, amount: 0.4 }}
+          viewport={scrollViewport}
         >
-          <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-[#081224]/90 border border-purple-500/35 text-slate-200 text-sm mb-6 backdrop-blur-xl shadow-[0_0_30px_rgba(168,85,247,0.2)]">
+          <div className="focus-changes__glass-lite inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-[#081224]/90 border border-purple-500/35 text-slate-200 text-sm mb-6 shadow-[0_0_30px_rgba(168,85,247,0.2)]">
             <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
             <span>
               {changes.newItemsCount} eventos observados,{' '}
