@@ -7,24 +7,23 @@ import {
   CheckCircle2,
   Layers,
   Sparkles,
-  ArrowRight,
+  ChevronDown,
   ShieldAlert,
   Clock3,
   Activity,
   Flame,
   Radio,
 } from 'lucide-react';
-import focusPriorityBeacon from '../../assets/focus-priority-beacon.webp';
+import focusPriorityScene from '../../assets/focus-priority-command-center-v2.png';
 import { FocusPriority } from '../../types/focus';
 import { useBriefingSectionMetrics, usePerfConfig } from '../../perf';
 import { useIntroScrollRoot } from './ArrivalSection';
 
 interface PrioritySectionProps {
   priority: FocusPriority;
-  onContinue?: () => void;
 }
 
-export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onContinue }) => {
+export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority }) => {
   const reduceMotion = !!useReducedMotion();
   const perf = usePerfConfig();
   const useFullDetailMotion = !reduceMotion && perf.tier === 'high';
@@ -54,66 +53,50 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
   );
 
   // ---------------------------------------------------------------------------
-  // ACT 1: APERTURA EDITORIAL (0.00 - 0.26)
+  // ACT 1: SEÑAL Y CONTRASTE OPERACIONAL (0.00 - 0.48) - VISIBLE IMMEDIATELY
   // ---------------------------------------------------------------------------
-  const openingBadgeOpacity = useTransform(storyProgress, [0, 0.03, 0.19, 0.25], [0, 1, 1, 0]);
-  const openingFirstOpacity = useTransform(storyProgress, [0, 0.04, 0.08, 0.11], [0, 1, 1, 0]);
-  const openingFirstY = useTransform(storyProgress, [0, 0.04, 0.11], [16, 0, -16]);
+  const act1Opacity = useTransform(storyProgress, [0, 0.44, 0.49], [1, 1, 0]);
+  const act1Y = useTransform(storyProgress, [0, 0.44, 0.49], [0, 0, -20]);
+  const act1Scale = useTransform(storyProgress, [0, 0.44, 0.49], [1, 1, 0.96]);
 
-  const openingExplainOpacity = useTransform(storyProgress, [0.09, 0.13, 0.18, 0.22], [0, 1, 1, 0]);
-  const openingExplainY = useTransform(storyProgress, [0.09, 0.13, 0.22], [20, 0, -16]);
+  const beaconScale = useTransform(storyProgress, [0, 0.05, 0.44, 0.49], [1, 1, 1, 0.94]);
+  const beaconOpacity = useTransform(storyProgress, [0, 0.44, 0.49], [1, 1, 0]);
 
-  const openingHeadlineOpacity = useTransform(storyProgress, [0.19, 0.22, 0.26, 0.29], [0, 1, 1, 0]);
-  const openingHeadlineY = useTransform(storyProgress, [0.19, 0.22, 0.29], [20, 0, -16]);
+  const cardCurrentOpacity = useTransform(storyProgress, [0, 0.44, 0.49], [1, 1, 0]);
+  const cardCurrentX = useTransform(storyProgress, [0, 0.44, 0.49], [0, 0, 12]);
 
-  const openingLayerOpacity = useTransform(storyProgress, [0, 0.27, 0.30], [1, 1, 0]);
+  const cardBaseOpacity = useTransform(storyProgress, [0, 0.44, 0.49], [1, 1, 0]);
+  const cardBaseX = useTransform(storyProgress, [0, 0.44, 0.49], [0, 0, 12]);
+
+  const divergencePillOpacity = useTransform(storyProgress, [0, 0.44, 0.49], [1, 1, 0]);
+  const divergencePillScale = useTransform(storyProgress, [0, 0.44, 0.49], [1, 1, 0.92]);
 
   // ---------------------------------------------------------------------------
-  // ACT 2 & 3: MAIN STAGE CONTAINER (0.26 - 0.84)
+  // ACT 2: DIAGNÓSTICO PROFUNDO & 3 DIMENSIONES (0.48 - 0.78)
   // ---------------------------------------------------------------------------
-  const stageOpacity = useTransform(storyProgress, [0.26, 0.30, 0.81, 0.85], [0, 1, 1, 0]);
-  const stageScale = useTransform(storyProgress, [0.26, 0.31, 0.81, 0.85], [0.97, 1, 1, 0.96]);
+  const act2Opacity = useTransform(storyProgress, [0.48, 0.53, 0.75, 0.80], [0, 1, 1, 0]);
+  const act2Y = useTransform(storyProgress, [0.48, 0.53, 0.75, 0.80], [24, 0, 0, -20]);
 
-  // ACT 2: Holographic Beacon & State Contrast (0.26 - 0.54)
-  const act2Opacity = useTransform(storyProgress, [0.26, 0.31, 0.50, 0.54], [0, 1, 1, 0]);
-  const act2Y = useTransform(storyProgress, [0.26, 0.31, 0.50, 0.54], [24, 0, 0, -20]);
+  const chipOneOpacity = useTransform(storyProgress, [0.52, 0.58], [0, 1]);
+  const chipOneY = useTransform(storyProgress, [0.52, 0.58], [16, 0]);
 
-  const beaconScale = useTransform(storyProgress, [0.26, 0.34, 0.50, 0.54], [0.92, 1, 1, 0.94]);
-  const beaconOpacity = useTransform(storyProgress, [0.26, 0.32, 0.50, 0.54], [0, 1, 1, 0]);
+  const chipTwoOpacity = useTransform(storyProgress, [0.57, 0.63], [0, 1]);
+  const chipTwoY = useTransform(storyProgress, [0.57, 0.63], [16, 0]);
 
-  const cardCurrentOpacity = useTransform(storyProgress, [0.28, 0.34, 0.50, 0.54], [0, 1, 1, 0]);
-  const cardCurrentX = useTransform(storyProgress, [0.28, 0.34, 0.50, 0.54], [24, 0, 0, 12]);
-
-  const cardBaseOpacity = useTransform(storyProgress, [0.32, 0.38, 0.50, 0.54], [0, 1, 1, 0]);
-  const cardBaseX = useTransform(storyProgress, [0.32, 0.38, 0.50, 0.54], [24, 0, 0, 12]);
-
-  const divergencePillOpacity = useTransform(storyProgress, [0.36, 0.42, 0.50, 0.54], [0, 1, 1, 0]);
-  const divergencePillScale = useTransform(storyProgress, [0.36, 0.42, 0.50, 0.54], [0.9, 1, 1, 0.92]);
-
-  // ACT 3: Deep-Dive Diagnostic & 3 Dimensions (0.54 - 0.82)
-  const act3Opacity = useTransform(storyProgress, [0.53, 0.57, 0.79, 0.83], [0, 1, 1, 0]);
-  const act3Y = useTransform(storyProgress, [0.53, 0.57, 0.79, 0.83], [24, 0, 0, -20]);
-
-  const chipOneOpacity = useTransform(storyProgress, [0.58, 0.63], [0, 1]);
-  const chipOneY = useTransform(storyProgress, [0.58, 0.63], [16, 0]);
-
-  const chipTwoOpacity = useTransform(storyProgress, [0.63, 0.68], [0, 1]);
-  const chipTwoY = useTransform(storyProgress, [0.63, 0.68], [16, 0]);
-
-  const chipThreeOpacity = useTransform(storyProgress, [0.68, 0.73], [0, 1]);
-  const chipThreeY = useTransform(storyProgress, [0.68, 0.73], [16, 0]);
+  const chipThreeOpacity = useTransform(storyProgress, [0.62, 0.68], [0, 1]);
+  const chipThreeY = useTransform(storyProgress, [0.62, 0.68], [16, 0]);
 
   // Step Indicators
-  const stepOneActive = useTransform(storyProgress, (p: number) => p >= 0.26 && p < 0.54);
-  const stepTwoActive = useTransform(storyProgress, (p: number) => p >= 0.54 && p < 0.82);
-  const stepThreeActive = useTransform(storyProgress, (p: number) => p >= 0.82);
+  const stepOneActive = useTransform(storyProgress, (p: number) => p < 0.48);
+  const stepTwoActive = useTransform(storyProgress, (p: number) => p >= 0.48 && p < 0.78);
+  const stepThreeActive = useTransform(storyProgress, (p: number) => p >= 0.78);
 
   // ---------------------------------------------------------------------------
-  // ACT 4: EDITORIAL CONCLUSION & CLOSURE (0.82 - 1.00)
+  // ACT 3: SÍNTESIS EDITORIAL & HANDOFF (0.78 - 1.00)
   // ---------------------------------------------------------------------------
-  const conclusionOpacity = useTransform(storyProgress, [0.82, 0.86, 1], [0, 1, 1]);
-  const conclusionY = useTransform(storyProgress, [0.82, 0.86, 1], [24, 0, 0]);
-  const conclusionScale = useTransform(storyProgress, [0.82, 0.86, 1], [0.96, 1, 1]);
+  const conclusionOpacity = useTransform(storyProgress, [0.78, 0.83, 1], [0, 1, 1]);
+  const conclusionY = useTransform(storyProgress, [0.78, 0.83, 1], [24, 0, 0]);
+  const conclusionScale = useTransform(storyProgress, [0.78, 0.83, 1], [0.96, 1, 1]);
 
   return (
     <section
@@ -133,68 +116,13 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
           <div className="prio-ambient__halo-rose" />
         </div>
 
-        {/* ACTO 1: Apertura Editorial */}
-        <motion.div
-          className="prio-opening"
-          style={{ opacity: reduceMotion ? 1 : openingLayerOpacity }}
-          aria-hidden="true"
-        >
-          <motion.div
-            className="prio-opening__badge"
-            style={{ opacity: reduceMotion ? 1 : openingBadgeOpacity }}
-          >
-            <span>01 / 07</span>
-            <i />
-            <strong>PRIORIDAD PRINCIPAL</strong>
-          </motion.div>
-
-          <motion.p
-            className="prio-opening__line prio-opening__line--first"
-            style={{
-              opacity: reduceMotion ? 1 : openingFirstOpacity,
-              y: reduceMotion ? 0 : openingFirstY,
-            }}
-          >
-            El ruido fue descartado.
-          </motion.p>
-
-          <motion.p
-            className="prio-opening__line prio-opening__line--explain"
-            style={{
-              opacity: reduceMotion ? 1 : openingExplainOpacity,
-              y: reduceMotion ? 0 : openingExplainY,
-            }}
-          >
-            FOCUS aisló el <strong>asunto de mayor impacto</strong> para tu operación hoy.
-          </motion.p>
-
-          <motion.h2
-            className="prio-opening__headline"
-            style={{
-              opacity: reduceMotion ? 1 : openingHeadlineOpacity,
-              y: reduceMotion ? 0 : openingHeadlineY,
-            }}
-          >
-            {priority.headline}
-          </motion.h2>
-        </motion.div>
-
-        {/* ACTO 2 & ACTO 3: Stage Container */}
-        <motion.div
-          className="prio-stage"
-          style={{
-            opacity: reduceMotion ? 1 : stageOpacity,
-            scale: reduceMotion ? 1 : stageScale,
-            pointerEvents: useTransform(storyProgress, (p: number) =>
-              p >= 0.26 && p <= 0.82 ? 'auto' : 'none',
-            ),
-          }}
-        >
+        {/* Main Stage Container */}
+        <div className="prio-stage">
           {/* Topline Bar */}
           <div className="prio-stage__topline">
             <span>
               <Layers className="w-3.5 h-3.5 text-cyan-400" />
-              SIGNAL_CORE // 01.07 · ASUNTO PRIORITARIO AISLADO
+              01 / 07 · PRIORIDAD PRINCIPAL // ASUNTO AISLADO
             </span>
             <span className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
@@ -203,17 +131,31 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
           </div>
 
           <div className="prio-stage__content">
-            {/* ACTO 2: Beacon Holográfico & Contraste Operacional (0.26 - 0.54) */}
+            {/* ACTO 1: Beacon Holográfico & Contraste Operacional (0.00 - 0.48) */}
             <motion.div
               className="prio-act-contrast"
               style={{
-                opacity: reduceMotion ? 1 : act2Opacity,
-                y: reduceMotion ? 0 : act2Y,
+                opacity: reduceMotion ? 1 : act1Opacity,
+                y: reduceMotion ? 0 : act1Y,
+                scale: reduceMotion ? 1 : act1Scale,
                 display: useTransform(storyProgress, (p: number) =>
-                  p >= 0.24 && p <= 0.55 ? 'flex' : 'none',
+                  p <= 0.50 ? 'flex' : 'none',
+                ),
+                pointerEvents: useTransform(storyProgress, (p: number) =>
+                  p <= 0.48 ? 'auto' : 'none',
                 ),
               }}
             >
+              {/* Executive Header Banner */}
+              <div className="prio-contrast-banner">
+                <h2 className="prio-contrast-banner__title">
+                  {priority.headline}
+                </h2>
+                <p className="prio-contrast-banner__desc">
+                  {priority.description}
+                </p>
+              </div>
+
               <div className="prio-contrast-layout">
                 {/* Left: 3D Holographic Beacon Plate */}
                 <motion.figure
@@ -224,6 +166,14 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
                   }}
                 >
                   <div className="prio-beacon-visual__halo" aria-hidden="true" />
+
+                  <div className="prio-beacon-visual__hud" aria-hidden="true">
+                    <span>
+                      <Radio className="w-3.5 h-3.5" />
+                      NÚCLEO PRIORITARIO
+                    </span>
+                    <span>FOCUS / 01</span>
+                  </div>
                   
                   {/* Orbiting Laser Geometry */}
                   <svg
@@ -258,8 +208,8 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
                   {/* 3D Beacon Crystal Media */}
                   <div className="prio-beacon-visual__plate">
                     <motion.img
-                      src={focusPriorityBeacon}
-                      alt="FOCUS Priority Beacon"
+                      src={focusPriorityScene}
+                      alt="Centro de observación de FOCUS con el núcleo prioritario completamente visible"
                       loading="eager"
                       decoding="async"
                       className="prio-beacon-visual__img"
@@ -268,10 +218,15 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
                     />
                   </div>
 
+                  <div className="prio-beacon-visual__subject">
+                    <span>ASUNTO AISLADO</span>
+                    <strong>{priority.title}</strong>
+                  </div>
+
                   {/* Live Telemetry Pill */}
-                  <div className="prio-beacon-visual__pill">
+                  <figcaption className="prio-beacon-visual__pill">
                     <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                      <span className="prio-beacon-visual__live-dot" />
                       <div className="flex flex-col">
                         <span className="text-[9px] text-cyan-300 font-mono tracking-widest uppercase font-semibold">
                           Señal Activa
@@ -295,7 +250,7 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
                         {priority.deltaPercentage}%
                       </span>
                     </div>
-                  </div>
+                  </figcaption>
                 </motion.figure>
 
                 {/* Right: State Comparison Cards */}
@@ -322,11 +277,23 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
                       </span>
                     </div>
 
-                    <h3 className="prio-card__value text-rose-200">{priority.currentMetric}</h3>
-                    <p className="prio-card__sub text-rose-300/80">Ritmo observado en tiempo real</p>
+                    <div className="prio-card__metric-row">
+                      <div>
+                        <h3 className="prio-card__value text-rose-200">{priority.currentMetric}</h3>
+                        <p className="prio-card__sub text-rose-300/80">Ritmo observado en tiempo real</p>
+                      </div>
+                      <div className="prio-card__metric-note is-alert">
+                        <small>BRECHA ACTIVA</small>
+                        <strong>+{priority.deltaPercentage}%</strong>
+                      </div>
+                    </div>
                     <p className="prio-card__desc">
                       El indicador opera significativamente alejado del estándar de referencia que la operación suele sostener.
                     </p>
+                    <div className="prio-card__footer">
+                      <span>Umbral habitual</span>
+                      <strong>{priority.usualMetric}</strong>
+                    </div>
                   </motion.article>
 
                   {/* Divergence Pill */}
@@ -360,24 +327,39 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
                       <span className="prio-card__badge is-base">LÍNEA BASE</span>
                     </div>
 
-                    <h3 className="prio-card__value text-blue-200">{priority.usualMetric}</h3>
-                    <p className="prio-card__sub text-blue-300/80">Comportamiento histórico normal</p>
+                    <div className="prio-card__metric-row">
+                      <div>
+                        <h3 className="prio-card__value text-blue-200">{priority.usualMetric}</h3>
+                        <p className="prio-card__sub text-blue-300/80">Comportamiento histórico normal</p>
+                      </div>
+                      <div className="prio-card__metric-note is-base">
+                        <small>ESTADO</small>
+                        <strong>ESTABLE</strong>
+                      </div>
+                    </div>
                     <p className="prio-card__desc">
                       El comportamiento esperado se mantiene cerca de este nivel de estabilidad. Ese contraste define la prioridad.
                     </p>
+                    <div className="prio-card__footer">
+                      <span>Patrón de referencia</span>
+                      <strong>Línea base validada</strong>
+                    </div>
                   </motion.article>
                 </div>
               </div>
             </motion.div>
 
-            {/* ACTO 3: Lectura Diagnóstica de FOCUS & 3 Dimensiones (0.54 - 0.82) */}
+            {/* ACTO 2: Lectura Diagnóstica de FOCUS & 3 Dimensiones (0.48 - 0.78) */}
             <motion.div
               className="prio-act-deepdive"
               style={{
-                opacity: reduceMotion ? 1 : act3Opacity,
-                y: reduceMotion ? 0 : act3Y,
+                opacity: reduceMotion ? 1 : act2Opacity,
+                y: reduceMotion ? 0 : act2Y,
                 display: useTransform(storyProgress, (p: number) =>
-                  p >= 0.52 && p <= 0.84 ? 'flex' : 'none',
+                  p >= 0.46 && p <= 0.80 ? 'flex' : 'none',
+                ),
+                pointerEvents: useTransform(storyProgress, (p: number) =>
+                  p >= 0.48 && p <= 0.78 ? 'auto' : 'none',
                 ),
               }}
             >
@@ -464,8 +446,7 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
                       CONTINUO
                     </span>
                   </motion.div>
-
-                  {/* Pillar 3: Relevancia */}
+                     {/* Pillar 3: Relevancia */}
                   <motion.div
                     className="prio-pillar prio-pillar--relevance"
                     style={{
@@ -495,7 +476,7 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
           {/* Bottom Status & Step Navigation Bar */}
           <div className="prio-stage__bottom">
             <div className="prio-step-indicator">
-              <PrioStepDot active={stepOneActive} label="01 · CONTRASTE OPERACIONAL" />
+              <PrioStepDot active={stepOneActive} label="01 · SEÑAL Y CONTRASTE" />
               <PrioStepDot active={stepTwoActive} label="02 · DIAGNÓSTICO DE FOCUS" />
               <PrioStepDot active={stepThreeActive} label="03 · SÍNTESIS" />
             </div>
@@ -504,9 +485,9 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
               {priority.affectedCount} {priority.affectedUnit.toUpperCase()} // +{priority.deltaPercentage}% DESVÍO
             </span>
           </div>
-        </motion.div>
+        </div>
 
-        {/* ACTO 4: Conclusión Editorial y Handoff (0.82 - 1.00) */}
+        {/* ACTO 3: Conclusión Editorial y Handoff (0.78 - 1.00) */}
         <motion.div
           className="prio-conclusion"
           style={{
@@ -514,7 +495,7 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
             y: reduceMotion ? 0 : conclusionY,
             scale: reduceMotion ? 1 : conclusionScale,
             pointerEvents: useTransform(storyProgress, (p: number) =>
-              p >= 0.82 ? 'auto' : 'none',
+              p >= 0.78 ? 'auto' : 'none',
             ),
           }}
           aria-label="Conclusión editorial de prioridad"
@@ -546,17 +527,17 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onCo
             </span>
           </div>
 
-          {onContinue && (
-            <button
-              type="button"
-              className="prio-conclusion__cta"
-              onClick={onContinue}
-              aria-label="Continuar al capítulo Por Qué"
-            >
-              <span>Explorar las 4 razones en Por Qué</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          )}
+          <div
+            className="prio-conclusion__scroll-cue"
+            aria-label="Sigue deslizando para ver el resumen completo de FOCUS"
+          >
+            <span>Sigue deslizando</span>
+            <small>para ver el resumen completo de FOCUS</small>
+            <div className="prio-conclusion__scroll-track" aria-hidden="true">
+              <i />
+              <ChevronDown />
+            </div>
+          </div>
         </motion.div>
       </div>
     </section>

@@ -6953,6 +6953,201 @@
 }
 
 .prio-stage__topline span:first-child {
+background: #030714;
+  scroll-snap-align: none;
+  contain: paint;
+}
+
+.prio-sticky {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  max-height: 1080px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  isolation: isolate;
+  background: radial-gradient(circle at 50% 50%, #060d1f 0%, #02050e 100%);
+}
+
+.prio-ambient,
+.prio-ambient > div {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.prio-ambient {
+  z-index: 0;
+  overflow: hidden;
+}
+
+.prio-ambient__base {
+  background:
+    radial-gradient(ellipse 75% 65% at 25% 35%, rgba(6, 182, 212, 0.16), transparent 60%),
+    radial-gradient(ellipse 65% 60% at 75% 65%, rgba(168, 85, 247, 0.14), transparent 60%),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(244, 63, 94, 0.08), transparent 65%);
+}
+
+.prio-ambient__grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, black, transparent 75%);
+}
+
+.prio-ambient__halo-cyan {
+  position: absolute;
+  top: 18%;
+  left: 15%;
+  width: 560px;
+  height: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.20) 0%, transparent 70%);
+  filter: blur(85px);
+}
+
+.prio-ambient__halo-purple {
+  position: absolute;
+  bottom: 18%;
+  right: 15%;
+  width: 520px;
+  height: 380px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.18) 0%, transparent 70%);
+  filter: blur(85px);
+}
+
+.prio-ambient__halo-rose {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 480px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.10) 0%, transparent 70%);
+  filter: blur(90px);
+}
+
+/* Act 1: Apertura Editorial */
+.prio-opening,
+.prio-conclusion {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 40px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.prio-opening__badge {
+  position: absolute;
+  top: clamp(44px, 8vh, 76px);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 31px;
+  padding: 0 14px;
+  border: 1px solid rgba(56, 189, 248, 0.38);
+  border-radius: 999px;
+  background: rgba(6, 18, 36, 0.75);
+  backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 12px 34px rgba(0, 0, 0, 0.35);
+  color: rgba(240, 249, 255, 0.9);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+}
+
+.prio-opening__badge span { color: #38bdf8; font-weight: 600; }
+.prio-opening__badge i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.95);
+}
+.prio-opening__badge strong { font-weight: 650; }
+
+.prio-opening__line,
+.prio-opening__headline {
+  position: absolute;
+  max-width: 960px;
+  margin: 0;
+  will-change: transform, opacity;
+}
+
+.prio-opening__line--first {
+  color: rgba(234, 239, 255, 0.94);
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(42px, 5vw, 72px);
+  font-weight: 430;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.prio-opening__line--explain {
+  color: rgba(186, 230, 253, 0.85);
+  font-size: clamp(21px, 2.4vw, 34px);
+  font-weight: 340;
+  letter-spacing: -0.035em;
+  line-height: 1.28;
+}
+
+.prio-opening__line--explain strong {
+  color: rgba(255, 255, 255, 0.98);
+  font-weight: 520;
+}
+
+.prio-opening__headline {
+  color: transparent;
+  background: linear-gradient(105deg, #bae6fd 4%, #ffffff 50%, #e9d5ff 96%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(42px, 5.2vw, 78px);
+  font-weight: 560;
+  letter-spacing: -0.055em;
+  line-height: 1.04;
+}
+
+/* Stage Container */
+.prio-stage {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(22px, 3.5vh, 36px) clamp(24px, 4vw, 68px) clamp(20px, 3vh, 32px);
+  transform-origin: center 58%;
+  will-change: transform, opacity;
+}
+
+.prio-stage__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px clamp(12px, 2vh, 18px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.85);
+  text-transform: uppercase;
+}
+
+.prio-stage__topline span:first-child {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -6969,52 +7164,147 @@
   justify-content: center;
 }
 
-/* Act 2: Contrast Layout */
+/* Act 1: Contrast Layout & Executive Header */
 .prio-act-contrast {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   width: 100%;
-  max-width: 1240px;
+  max-width: 1320px;
   margin: 0 auto;
+}
+
+.prio-contrast-banner {
+  margin-bottom: clamp(10px, 1.8vh, 18px);
+  text-align: left;
+  width: 100%;
+}
+
+.prio-contrast-banner__title {
+  margin: 0 0 4px 0;
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(22px, 2.2vw, 30px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  color: #ffffff;
+  background: linear-gradient(105deg, #bae6fd 0%, #ffffff 50%, #e9d5ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.15;
+}
+
+.prio-contrast-banner__desc {
+  margin: 0;
+  font-size: clamp(13px, 1.1vw, 15px);
+  color: rgba(203, 213, 225, 0.85);
+  font-weight: 350;
+  max-width: 860px;
+  line-height: 1.4;
 }
 
 .prio-contrast-layout {
   display: grid;
-  grid-template-columns: 1fr 1.15fr;
-  gap: clamp(24px, 3.5vw, 56px);
+  grid-template-columns: minmax(0, 1.18fr) minmax(440px, 0.82fr);
+  gap: clamp(26px, 3.2vw, 48px);
   align-items: center;
   width: 100%;
-}
-
-@media (max-width: 980px) {
-  .prio-contrast-layout {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
 }
 
 /* 3D Holographic Beacon Visual */
+.prio-section {
+  position: relative;
+  height: 440vh;
+  min-height: 3200px;
+  overflow: visible;
+  color: #f8f9ff;
+  background: #030714;
+  scroll-snap-align: none;
+  contain: paint;
+}
+
 .prio-beacon-visual {
   position: relative;
   width: 100%;
-  max-width: 440px;
+  max-width: 720px;
   margin: 0 auto;
-  aspect-ratio: 1.15 / 1;
+  aspect-ratio: 1.55 / 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(125, 211, 252, 0.32);
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(17, 93, 186, 0.22), transparent 46%),
+    #030816;
+  box-shadow:
+    0 46px 100px -36px rgba(0, 0, 0, 0.95),
+    0 28px 80px -30px rgba(14, 165, 233, 0.62),
+    0 0 0 6px rgba(4, 12, 28, 0.68),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.prio-beacon-visual::before,
+.prio-beacon-visual::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.prio-beacon-visual::before {
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(56, 189, 248, 0.7), transparent 18%) top left / 92px 1px no-repeat,
+    linear-gradient(180deg, rgba(56, 189, 248, 0.7), transparent 24%) top left / 1px 92px no-repeat,
+    linear-gradient(270deg, rgba(192, 132, 252, 0.58), transparent 18%) bottom right / 92px 1px no-repeat,
+    linear-gradient(0deg, rgba(192, 132, 252, 0.58), transparent 24%) bottom right / 1px 92px no-repeat;
+}
+
+.prio-beacon-visual::after {
+  background:
+    linear-gradient(180deg, rgba(2, 6, 17, 0.42) 0%, transparent 24%, transparent 62%, rgba(2, 6, 17, 0.86) 100%),
+    linear-gradient(90deg, rgba(2, 6, 17, 0.55), transparent 20%, transparent 80%, rgba(2, 6, 17, 0.42));
 }
 
 .prio-beacon-visual__halo {
   position: absolute;
-  inset: 10%;
+  inset: -12%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.28) 0%, rgba(168, 85, 247, 0.15) 45%, transparent 72%);
-  filter: blur(50px);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.34) 0%, rgba(59, 130, 246, 0.16) 38%, transparent 68%);
+  filter: blur(42px);
   pointer-events: none;
+}
+
+.prio-beacon-visual__hud {
+  position: absolute;
+  z-index: 7;
+  top: 18px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(186, 230, 253, 0.82);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.prio-beacon-visual__hud span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.prio-beacon-visual__hud span:last-child {
+  color: rgba(148, 163, 184, 0.7);
 }
 
 .prio-beacon-visual__orbits {
@@ -7023,20 +7313,20 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 1;
-  opacity: 0.45;
+  z-index: 3;
+  opacity: 0.18;
+  mix-blend-mode: screen;
 }
 
 .prio-beacon-visual__plate {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 2;
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  mask-image: radial-gradient(ellipse 55% 52% at 50% 45%, #000 0%, #000 28%, rgba(0,0,0,0.65) 48%, rgba(0,0,0,0.2) 64%, transparent 78%);
-  -webkit-mask-image: radial-gradient(ellipse 55% 52% at 50% 45%, #000 0%, #000 28%, rgba(0,0,0,0.65) 48%, rgba(0,0,0,0.2) 64%, transparent 78%);
 }
 
 .prio-beacon-visual__img {
@@ -7044,54 +7334,110 @@
   height: 100%;
   object-fit: contain;
   object-position: center;
-  transform: scale(1.1);
-  filter: saturate(1.25) contrast(1.08) brightness(1.05);
-  mix-blend-mode: screen;
+  transform: scale(1.002);
+  filter: saturate(1.06) contrast(1.05) brightness(0.96);
   pointer-events: none;
   user-select: none;
 }
 
+.prio-beacon-visual__subject {
+  position: absolute;
+  z-index: 7;
+  left: 22px;
+  bottom: 20px;
+  display: flex;
+  max-width: 48%;
+  flex-direction: column;
+  gap: 3px;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85);
+}
+
+.prio-beacon-visual__subject span {
+  color: rgba(125, 211, 252, 0.72);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.prio-beacon-visual__subject strong {
+  overflow: hidden;
+  color: rgba(248, 250, 252, 0.94);
+  font-family: "Outfit", sans-serif;
+  font-size: 13px;
+  font-weight: 560;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .prio-beacon-visual__pill {
   position: absolute;
-  bottom: 8px;
-  right: 12px;
-  z-index: 10;
+  bottom: 16px;
+  right: 18px;
+  z-index: 8;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 14px;
-  border-radius: 12px;
-  background: rgba(4, 9, 22, 0.94);
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(16px);
+  padding: 9px 11px 9px 12px;
+  border-radius: 13px;
+  background: rgba(3, 9, 21, 0.78);
+  border: 1px solid rgba(125, 211, 252, 0.3);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.prio-beacon-visual__live-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #22d3ee;
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.9);
+}
+
+.prio-beacon-visual__live-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 1px solid rgba(34, 211, 238, 0.38);
+  border-radius: inherit;
 }
 
 /* Contrast Cards */
 .prio-contrast-cards {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 13px;
   width: 100%;
 }
 
 .prio-card {
+  --prio-card-accent: 56, 189, 248;
   position: relative;
   overflow: hidden;
-  border-radius: 20px;
-  padding: clamp(16px, 2.4vh, 22px) clamp(18px, 2.5vw, 26px);
-  background: linear-gradient(145deg, rgba(8, 17, 34, 0.92) 0%, rgba(4, 9, 20, 0.96) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  padding: clamp(17px, 2.2vh, 21px) clamp(19px, 2.2vw, 24px) 16px;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(var(--prio-card-accent), 0.2), transparent 37%),
+    linear-gradient(145deg, rgba(13, 25, 47, 0.93) 0%, rgba(4, 9, 20, 0.985) 72%);
+  border: 1px solid rgba(var(--prio-card-accent), 0.34);
+  box-shadow:
+    0 22px 50px -22px rgba(0, 0, 0, 0.9),
+    0 18px 52px -30px rgba(var(--prio-card-accent), 0.82),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
 }
 
 .prio-card--current {
-  border-bottom: 2px solid rgba(244, 63, 94, 0.85);
+  --prio-card-accent: 244, 63, 94;
+  border-left: 2px solid rgba(244, 63, 94, 0.82);
 }
 
 .prio-card--baseline {
-  border-bottom: 2px solid rgba(56, 189, 248, 0.85);
+  --prio-card-accent: 56, 189, 248;
+  border-left: 2px solid rgba(56, 189, 248, 0.82);
 }
 
 .prio-card__specular {
@@ -7099,8 +7445,11 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 45%;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+  bottom: 0;
+  height: auto;
+  background:
+    linear-gradient(90deg, rgba(var(--prio-card-accent), 0.72), transparent 34%) left bottom / 42% 1px no-repeat,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, transparent 44%);
   pointer-events: none;
 }
 
@@ -7108,7 +7457,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 13px;
   position: relative;
   z-index: 2;
 }
@@ -7120,9 +7469,9 @@
 }
 
 .prio-card__icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7140,7 +7489,7 @@
 
 .prio-card__label {
   font-family: "Outfit", sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: rgba(241, 245, 249, 0.95);
   text-transform: uppercase;
@@ -7152,7 +7501,7 @@
   align-items: center;
   gap: 6px;
   font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 3px 9px;
@@ -7173,9 +7522,9 @@
 }
 
 .prio-card__value {
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
   font-family: "Outfit", sans-serif;
-  font-size: clamp(28px, 3.2vw, 42px);
+  font-size: clamp(32px, 3.3vw, 46px);
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1.1;
@@ -7183,8 +7532,53 @@
   z-index: 2;
 }
 
+.prio-card__metric-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 10px;
+}
+
+.prio-card__metric-note {
+  display: flex;
+  min-width: 88px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  padding: 7px 9px;
+  border: 1px solid;
+  border-radius: 10px;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.prio-card__metric-note small {
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.prio-card__metric-note strong {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.prio-card__metric-note.is-alert {
+  color: #fda4af;
+  border-color: rgba(244, 63, 94, 0.28);
+  background: rgba(244, 63, 94, 0.08);
+}
+
+.prio-card__metric-note.is-base {
+  color: #7dd3fc;
+  border-color: rgba(56, 189, 248, 0.25);
+  background: rgba(56, 189, 248, 0.07);
+}
+
 .prio-card__sub {
-  margin: 0 0 6px 0;
+  margin: 0;
   font-size: 12px;
   font-weight: 500;
   position: relative;
@@ -7193,28 +7587,217 @@
 
 .prio-card__desc {
   margin: 0;
-  font-size: 12px;
+  font-size: 12.5px;
   color: rgba(203, 213, 225, 0.85);
   line-height: 1.45;
   position: relative;
   z-index: 2;
 }
 
+.prio-card__footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  color: rgba(148, 163, 184, 0.72);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+}
+
+.prio-card__footer strong {
+  color: rgba(226, 232, 240, 0.9);
+  font-size: 9px;
+  font-weight: 650;
+}
+
 .prio-divergence-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
+  padding: 5px 13px;
   border-radius: 999px;
   background: rgba(6, 182, 212, 0.10);
   border: 1px solid rgba(56, 189, 248, 0.35);
   font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: #38bdf8;
   align-self: center;
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.2);
+  box-shadow: 0 0 22px rgba(56, 189, 248, 0.16), inset 0 1px rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 1180px) {
+  .prio-contrast-layout {
+    grid-template-columns: minmax(0, 1.08fr) minmax(390px, 0.92fr);
+    gap: 24px;
+  }
+
+  .prio-beacon-visual {
+    max-width: 640px;
+  }
+
+  .prio-card {
+    padding-inline: 19px;
+  }
+
+  .prio-card__desc {
+    font-size: 11.5px;
+  }
+}
+
+@media (max-width: 980px) {
+  .prio-stage {
+    padding-inline: clamp(20px, 4vw, 34px);
+  }
+
+  .prio-contrast-layout {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    transform: translateY(-1vh);
+  }
+
+  .prio-beacon-visual {
+    max-width: 620px;
+    aspect-ratio: 16 / 8.8;
+  }
+
+  .prio-contrast-cards {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+
+  .prio-card {
+    padding: 15px 16px 13px;
+  }
+
+  .prio-card--current {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .prio-card--baseline {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .prio-divergence-pill {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .prio-card__header {
+    margin-bottom: 9px;
+  }
+
+  .prio-card__metric-row {
+    margin-bottom: 7px;
+  }
+
+  .prio-card__metric-note {
+    display: none;
+  }
+
+  .prio-card__footer {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+}
+
+@media (max-width: 700px) {
+  .prio-stage {
+    padding: 18px 16px 14px;
+  }
+
+  .prio-stage__topline span:last-child,
+  .prio-stage__bottom > span,
+  .prio-beacon-visual__subject,
+  .prio-card__desc,
+  .prio-card__footer {
+    display: none;
+  }
+
+  .prio-stage__topline {
+    font-size: 8.5px;
+  }
+
+  .prio-beacon-visual {
+    max-width: 520px;
+    aspect-ratio: 16 / 9;
+    border-radius: 20px;
+  }
+
+  .prio-beacon-visual__hud {
+    top: 13px;
+    left: 14px;
+    right: 14px;
+  }
+
+  .prio-beacon-visual__pill {
+    right: 12px;
+    bottom: 11px;
+    padding: 7px 9px;
+  }
+
+  .prio-contrast-cards {
+    display: flex;
+  }
+
+  .prio-card {
+    border-radius: 16px;
+    padding: 12px 14px;
+  }
+
+  .prio-card__header {
+    margin-bottom: 7px;
+  }
+
+  .prio-card__badge {
+    display: none;
+  }
+
+  .prio-card__value {
+    font-size: 29px;
+  }
+
+  .prio-divergence-pill {
+    padding-block: 4px;
+    font-size: 8.5px;
+  }
+
+  .prio-step-dot {
+    padding-inline: 7px;
+    font-size: 8px;
+  }
+}
+
+@media (max-height: 720px) and (min-width: 981px) {
+  .prio-beacon-visual {
+    max-width: 560px;
+  }
+
+  .prio-card {
+    padding-block: 14px 12px;
+  }
+
+  .prio-card__header,
+  .prio-card__metric-row {
+    margin-bottom: 7px;
+  }
+
+  .prio-card__footer {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
 }
 
 /* Act 3: Deepdive Layout */
@@ -7500,30 +8083,92 @@
   color: #e2e8f0;
 }
 
-.prio-conclusion__cta {
+.prio-conclusion__scroll-cue {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 12px 26px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(168, 85, 247, 0.25) 100%);
-  border: 1px solid rgba(56, 189, 248, 0.45);
-  color: #ffffff;
-  font-family: "Outfit", sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  box-shadow: 0 8px 24px rgba(6, 182, 212, 0.25);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  pointer-events: auto;
+  gap: 3px;
+  color: rgba(186, 230, 253, 0.88);
+  pointer-events: none;
+  user-select: none;
 }
 
-.prio-conclusion__cta:hover {
-  transform: translateY(-2px);
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.4) 0%, rgba(168, 85, 247, 0.4) 100%);
-  border-color: rgba(56, 189, 248, 0.8);
-  box-shadow: 0 12px 32px rgba(6, 182, 212, 0.4);
+.prio-conclusion__scroll-cue > span {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: 0 0 18px rgba(56, 189, 248, 0.32);
+}
+
+.prio-conclusion__scroll-cue > small {
+  color: rgba(203, 213, 225, 0.58);
+  font-family: "Outfit", sans-serif;
+  font-size: 12px;
+  font-weight: 420;
+  letter-spacing: 0.025em;
+}
+
+.prio-conclusion__scroll-track {
+  position: relative;
+  width: 22px;
+  height: 40px;
+  margin-top: 5px;
+  color: #67e8f9;
+}
+
+.prio-conclusion__scroll-track::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 25px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(103, 232, 249, 0), rgba(103, 232, 249, 0.68));
+}
+
+.prio-conclusion__scroll-track i {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #67e8f9;
+  box-shadow: 0 0 10px rgba(103, 232, 249, 0.95);
+  animation: prio-scroll-signal 1.9s ease-in-out infinite;
+}
+
+.prio-conclusion__scroll-track svg {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 17px;
+  height: 17px;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.38));
+  animation: prio-scroll-chevron 1.9s ease-in-out infinite;
+}
+
+@keyframes prio-scroll-signal {
+  0% { opacity: 0; transform: translate(-50%, -2px); }
+  35% { opacity: 1; }
+  78%, 100% { opacity: 0; transform: translate(-50%, 19px); }
+}
+
+@keyframes prio-scroll-chevron {
+  0%, 100% { opacity: 0.55; transform: translate(-50%, 0); }
+  50% { opacity: 1; transform: translate(-50%, 4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prio-conclusion__scroll-track i,
+  .prio-conclusion__scroll-track svg {
+    animation: none;
+  }
 }
 
 /* Layer 1: Ambient radial background glow */

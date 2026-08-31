@@ -271,7 +271,7 @@ export const FocusExperience: React.FC = () => {
     return (
       <>
         <NoiseFilterTransition id="transition-panorama-to-priority" />
-        <PrioritySection priority={briefing.mainPriority} onContinue={() => scrollTo('section-chapter-why')} />
+        <PrioritySection priority={briefing.mainPriority} />
         <WhyItMattersSection signals={briefing.signals} />
         <WhyChangesBridge conclusion={briefing.mainPriority.explanation.summaryText} />
         <WhatChangedSection changes={briefing.changes} onContinue={() => scrollTo('section-chapter-anomaly')} />
