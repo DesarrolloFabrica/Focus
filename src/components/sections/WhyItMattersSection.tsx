@@ -202,39 +202,33 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
   // Dynamic header state bindings
   const [headerState, setHeaderState] = useState({
     stepLabel: 'POR QUÉ',
-    stepNum: '03 / 04',
+    stepChapter: '02 / 07',
     evidences: '0 / 4',
   });
 
   useEffect(() => {
     return storyProgress.on('change', (p) => {
       let stepLabel = 'POR QUÉ';
-      let stepNum = '03 / 04';
       let evidences = '0 / 4';
 
       if (p >= 0.77) {
         stepLabel = 'CONVERGENCIA';
-        stepNum = '04 / 04';
         evidences = '4 / 4';
       } else if (p >= 0.63) {
         stepLabel = 'CONTEXTO';
-        stepNum = '04 / 04';
         evidences = '4 / 4';
       } else if (p >= 0.49) {
         stepLabel = 'PERSISTENCIA';
-        stepNum = '03 / 04';
         evidences = '3 / 4';
       } else if (p >= 0.35) {
         stepLabel = 'DETERIORO';
-        stepNum = '02 / 04';
         evidences = '2 / 4';
       } else if (p >= 0.18) {
         stepLabel = 'IMPACTO';
-        stepNum = '01 / 04';
         evidences = '1 / 4';
       }
 
-      setHeaderState({ stepLabel, stepNum, evidences });
+      setHeaderState({ stepLabel, stepChapter: '02 / 07', evidences });
     });
   }, [storyProgress]);
 
@@ -261,7 +255,7 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
       id="section-chapter-why"
       className="relative h-[620vh] min-h-[620vh] w-full bg-transparent select-none contain-paint"
       data-chapter="why"
-      aria-label="Capítulo Por Qué: Cuatro evidencias hacia una conclusión"
+      aria-label="02 / 07 · Por Qué: cuatro evidencias hacia una conclusión"
     >
       <div className="sticky top-0 left-0 w-full h-[100svh] overflow-hidden flex flex-col p-4 sm:p-7 lg:px-9 lg:pt-8 lg:pb-6 z-10">
         {/* Ambient Atmosphere */}
@@ -275,7 +269,7 @@ export const WhyItMattersSection: React.FC<WhyItMattersSectionProps> = ({ signal
           <div className="p-[1px] rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
             <div className="relative z-10 inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-[#040914]/95 backdrop-blur-xl border border-white/10">
               <span className="text-cyan-400 font-mono text-xs font-bold tracking-widest">
-                {headerState.stepNum}
+                {headerState.stepChapter}
               </span>
               <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#38bdf8] animate-pulse" />
               <strong className="text-white text-xs tracking-widest uppercase font-mono font-semibold">

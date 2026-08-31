@@ -131,13 +131,6 @@ export const ImmersiveLanding: React.FC<ImmersiveLandingProps> = ({
               <strong>FOCUS</strong>
             </button>
 
-            <div className="iv-intro-nav__links" aria-hidden="true">
-              <span className="is-active">Inicio</span>
-              <span>Briefing</span>
-              <span>Señales</span>
-              <span>Contexto</span>
-            </div>
-
             <div className="iv-intro-nav__actions">
               <button
                 type="button"

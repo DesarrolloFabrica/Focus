@@ -1,400 +1,583 @@
-import React from 'react';
-import { motion, useReducedMotion, type Variants } from 'motion/react';
-import { ChevronDown, TrendingUp, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
+import React, { useCallback, useRef } from 'react';
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react';
+import {
+  TrendingUp,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
+  Layers,
+  Sparkles,
+  ArrowRight,
+  ShieldAlert,
+  Clock3,
+  Activity,
+  Flame,
+  Radio,
+} from 'lucide-react';
 import focusPriorityBeacon from '../../assets/focus-priority-beacon.webp';
 import { FocusPriority } from '../../types/focus';
-import { usePerfConfig } from '../../perf';
+import { useBriefingSectionMetrics, usePerfConfig } from '../../perf';
+import { useIntroScrollRoot } from './ArrivalSection';
 
 interface PrioritySectionProps {
   priority: FocusPriority;
   onContinue?: () => void;
 }
 
-const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
-const EASE_OUT_SOFT: [number, number, number, number] = [0.22, 1, 0.36, 1];
-
-export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority }) => {
+export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority, onContinue }) => {
   const reduceMotion = !!useReducedMotion();
   const perf = usePerfConfig();
   const useFullDetailMotion = !reduceMotion && perf.tier === 'high';
+  const scrollRootRef = useIntroScrollRoot();
+  const sectionRef = useRef<HTMLElement | null>(null);
 
-  const viewport = {
-    once: true,
-    amount: 0.05 as const,
-    margin: '100px 0px 0px 0px' as const,
-  };
+  const rawProgress = useMotionValue(0);
+  const animatedStoryProgress = useSpring(rawProgress, {
+    stiffness: 240,
+    damping: 28,
+    mass: 0.5,
+    restDelta: 0.0005,
+    restSpeed: 0.002,
+  });
+  const storyProgress = reduceMotion ? rawProgress : animatedStoryProgress;
 
-  const sectionVariants: Variants = {
-    hidden: {},
-    visible: {
-      transition: {
-        staggerChildren: reduceMotion ? 0 : 0.09,
-        delayChildren: reduceMotion ? 0 : 0.06,
+  useBriefingSectionMetrics(
+    sectionRef,
+    'priority',
+    scrollRootRef?.current ?? null,
+    useCallback(
+      (metrics) => {
+        rawProgress.set(metrics.progress);
       },
-    },
-  };
+      [rawProgress],
+    ),
+  );
 
-  const fadeUp: Variants = {
-    hidden: reduceMotion
-      ? { opacity: 1 }
-      : { opacity: 0, y: 24 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.7, ease: EASE_OUT_EXPO },
-    },
-  };
+  // ---------------------------------------------------------------------------
+  // ACT 1: APERTURA EDITORIAL (0.00 - 0.26)
+  // ---------------------------------------------------------------------------
+  const openingBadgeOpacity = useTransform(storyProgress, [0, 0.03, 0.19, 0.25], [0, 1, 1, 0]);
+  const openingFirstOpacity = useTransform(storyProgress, [0, 0.04, 0.08, 0.11], [0, 1, 1, 0]);
+  const openingFirstY = useTransform(storyProgress, [0, 0.04, 0.11], [16, 0, -16]);
 
-  const fadeLeft: Variants = {
-    hidden: reduceMotion
-      ? { opacity: 1 }
-      : { opacity: 0, x: -24 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: { duration: 0.65, ease: EASE_OUT_SOFT },
-    },
-  };
+  const openingExplainOpacity = useTransform(storyProgress, [0.09, 0.13, 0.18, 0.22], [0, 1, 1, 0]);
+  const openingExplainY = useTransform(storyProgress, [0.09, 0.13, 0.22], [20, 0, -16]);
 
-  const fadeRight: Variants = {
-    hidden: reduceMotion
-      ? { opacity: 1 }
-      : { opacity: 0, x: 28 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: { duration: 0.7, ease: EASE_OUT_SOFT },
-    },
-  };
+  const openingHeadlineOpacity = useTransform(storyProgress, [0.19, 0.22, 0.26, 0.29], [0, 1, 1, 0]);
+  const openingHeadlineY = useTransform(storyProgress, [0.19, 0.22, 0.29], [20, 0, -16]);
 
-  const scaleIn: Variants = {
-    hidden: reduceMotion
-      ? { opacity: 1 }
-      : { opacity: 0, scale: 0.94, y: 28 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      transition: { duration: 0.85, ease: EASE_OUT_EXPO },
-    },
-  };
+  const openingLayerOpacity = useTransform(storyProgress, [0, 0.27, 0.30], [1, 1, 0]);
 
-  const cardVariants: Variants = {
-    hidden: reduceMotion
-      ? { opacity: 1 }
-      : { opacity: 0, y: 32, scale: 0.98 },
-    visible: (i: number) => ({
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: {
-        duration: 0.75,
-        delay: reduceMotion ? 0 : 0.1 + i * 0.1,
-        ease: EASE_OUT_EXPO,
-      },
-    }),
-  };
+  // ---------------------------------------------------------------------------
+  // ACT 2 & 3: MAIN STAGE CONTAINER (0.26 - 0.84)
+  // ---------------------------------------------------------------------------
+  const stageOpacity = useTransform(storyProgress, [0.26, 0.30, 0.81, 0.85], [0, 1, 1, 0]);
+  const stageScale = useTransform(storyProgress, [0.26, 0.31, 0.81, 0.85], [0.97, 1, 1, 0.96]);
 
-  const metricChipVariants: Variants = {
-    hidden: reduceMotion ? { opacity: 1 } : { opacity: 0, y: 16, scale: 0.92 },
-    visible: (i: number) => ({
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: {
-        duration: 0.55,
-        delay: reduceMotion ? 0 : 0.55 + i * 0.08,
-        ease: EASE_OUT_SOFT,
-      },
-    }),
-  };
+  // ACT 2: Holographic Beacon & State Contrast (0.26 - 0.54)
+  const act2Opacity = useTransform(storyProgress, [0.26, 0.31, 0.50, 0.54], [0, 1, 1, 0]);
+  const act2Y = useTransform(storyProgress, [0.26, 0.31, 0.50, 0.54], [24, 0, 0, -20]);
+
+  const beaconScale = useTransform(storyProgress, [0.26, 0.34, 0.50, 0.54], [0.92, 1, 1, 0.94]);
+  const beaconOpacity = useTransform(storyProgress, [0.26, 0.32, 0.50, 0.54], [0, 1, 1, 0]);
+
+  const cardCurrentOpacity = useTransform(storyProgress, [0.28, 0.34, 0.50, 0.54], [0, 1, 1, 0]);
+  const cardCurrentX = useTransform(storyProgress, [0.28, 0.34, 0.50, 0.54], [24, 0, 0, 12]);
+
+  const cardBaseOpacity = useTransform(storyProgress, [0.32, 0.38, 0.50, 0.54], [0, 1, 1, 0]);
+  const cardBaseX = useTransform(storyProgress, [0.32, 0.38, 0.50, 0.54], [24, 0, 0, 12]);
+
+  const divergencePillOpacity = useTransform(storyProgress, [0.36, 0.42, 0.50, 0.54], [0, 1, 1, 0]);
+  const divergencePillScale = useTransform(storyProgress, [0.36, 0.42, 0.50, 0.54], [0.9, 1, 1, 0.92]);
+
+  // ACT 3: Deep-Dive Diagnostic & 3 Dimensions (0.54 - 0.82)
+  const act3Opacity = useTransform(storyProgress, [0.53, 0.57, 0.79, 0.83], [0, 1, 1, 0]);
+  const act3Y = useTransform(storyProgress, [0.53, 0.57, 0.79, 0.83], [24, 0, 0, -20]);
+
+  const chipOneOpacity = useTransform(storyProgress, [0.58, 0.63], [0, 1]);
+  const chipOneY = useTransform(storyProgress, [0.58, 0.63], [16, 0]);
+
+  const chipTwoOpacity = useTransform(storyProgress, [0.63, 0.68], [0, 1]);
+  const chipTwoY = useTransform(storyProgress, [0.63, 0.68], [16, 0]);
+
+  const chipThreeOpacity = useTransform(storyProgress, [0.68, 0.73], [0, 1]);
+  const chipThreeY = useTransform(storyProgress, [0.68, 0.73], [16, 0]);
+
+  // Step Indicators
+  const stepOneActive = useTransform(storyProgress, (p: number) => p >= 0.26 && p < 0.54);
+  const stepTwoActive = useTransform(storyProgress, (p: number) => p >= 0.54 && p < 0.82);
+  const stepThreeActive = useTransform(storyProgress, (p: number) => p >= 0.82);
+
+  // ---------------------------------------------------------------------------
+  // ACT 4: EDITORIAL CONCLUSION & CLOSURE (0.82 - 1.00)
+  // ---------------------------------------------------------------------------
+  const conclusionOpacity = useTransform(storyProgress, [0.82, 0.86, 1], [0, 1, 1]);
+  const conclusionY = useTransform(storyProgress, [0.82, 0.86, 1], [24, 0, 0]);
+  const conclusionScale = useTransform(storyProgress, [0.82, 0.86, 1], [0.96, 1, 1]);
 
   return (
     <section
+      ref={sectionRef}
       id="section-chapter-priority"
-      className="iv-priority-section relative pb-4 sm:pb-6 overflow-hidden flex flex-col"
+      className="prio-section select-none"
       data-chapter="priority"
+      aria-label="01 / 07 · Prioridad principal: detección y diagnóstico del foco de atención"
     >
-      {/* Soft static ambient — opacity pulse only on high tier */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden select-none" aria-hidden="true">
-        {useFullDetailMotion ? (
-          <motion.div
-            initial={false}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, ease: EASE_OUT_SOFT }}
-            className="absolute inset-0"
-          >
-            <motion.div
-              animate={{ opacity: [0.14, 0.22, 0.14] }}
-              transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-              className="iv-priority-section__ambient-orb is-animated absolute top-1/3 left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px]"
-            />
-            <motion.div
-              animate={{ opacity: [0.08, 0.16, 0.08] }}
-              transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-              className="iv-priority-section__ambient-orb is-animated absolute bottom-10 right-[-5%] w-[420px] h-[420px] bg-indigo-600/15 rounded-full blur-[100px]"
-            />
-          </motion.div>
-        ) : (
-          <>
-            <div className="iv-priority-section__ambient-orb absolute top-1/3 left-[-10%] w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,0.18)_0%,rgba(37,99,235,0.06)_42%,transparent_72%)]" />
-            <div className="iv-priority-section__ambient-orb absolute bottom-10 right-[-5%] w-[420px] h-[420px] rounded-full bg-[radial-gradient(circle,rgba(79,70,229,0.12)_0%,rgba(79,70,229,0.04)_42%,transparent_72%)]" />
-          </>
-        )}
-      </div>
-
-      <motion.div
-        className="relative z-10 max-w-[1400px] w-full mx-auto px-6 lg:px-12"
-        variants={sectionVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={viewport}
-      >
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
-
-          {/* LEFT COLUMN */}
-          <div className="lg:col-span-5 flex flex-col items-start">
-
-            {/* Chapter Step Pill */}
-            <motion.div
-              variants={fadeLeft}
-              className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-[#0c1424]/90 border border-white/10 mb-8 shadow-[0_4px_20px_rgba(0,0,0,0.3)]"
-            >
-              <span className="text-cyan-400 font-mono text-xs font-semibold tracking-wider">01 / 07</span>
-              <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              <strong className="text-white text-xs tracking-widest uppercase font-medium">Prioridad principal</strong>
-            </motion.div>
-
-            {/* Main Headline */}
-            <motion.h2
-              id="priority-heading"
-              tabIndex={-1}
-              variants={fadeUp}
-              className="text-4xl md:text-5xl lg:text-[3.25rem] font-bold tracking-tight text-white leading-[1.12] mb-10 bg-gradient-to-br from-white via-slate-100 to-blue-200 bg-clip-text text-transparent"
-            >
-              {priority.headline}
-            </motion.h2>
-
-            {/* 3D Beacon — feathered into ambient, no hard rectangular crop */}
-            <motion.figure
-              variants={scaleIn}
-              className="relative w-full max-w-[480px] mx-auto lg:mx-0 mt-2 flex items-center justify-center"
-            >
-              {/* Soft volumetric backlight (sits behind crystal) */}
-              <motion.div
-                variants={fadeUp}
-                className="absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 w-[85%] h-[75%] rounded-full bg-gradient-to-t from-blue-600/35 via-cyan-500/20 to-purple-600/15 blur-[70px] pointer-events-none"
-              />
-
-              <svg
-                className="absolute inset-0 w-full h-full pointer-events-none z-[1] opacity-35"
-                viewBox="0 0 420 360"
-                aria-hidden="true"
-              >
-                <ellipse cx="210" cy="230" rx="170" ry="58" fill="none" stroke="rgba(101, 217, 255, 0.4)" strokeWidth="1" strokeDasharray="5 9" />
-                <ellipse cx="210" cy="230" rx="188" ry="74" fill="none" stroke="rgba(147, 197, 253, 0.22)" strokeWidth="0.8" transform="rotate(-12 210 230)" />
-                <circle cx="105" cy="190" r="2.5" fill="#38bdf8" />
-                <circle cx="325" cy="250" r="2" fill="#c084fc" />
-              </svg>
-
-              {/* Image plate: soft elliptical feather — no square crop */}
-              <div
-                className="relative z-[2] w-full max-h-[400px] aspect-[1.15/1] flex items-center justify-center"
-                style={{
-                  WebkitMaskImage:
-                    'radial-gradient(ellipse 55% 52% at 50% 45%, #000 0%, #000 28%, rgba(0,0,0,0.65) 48%, rgba(0,0,0,0.2) 64%, transparent 78%)',
-                  maskImage:
-                    'radial-gradient(ellipse 55% 52% at 50% 45%, #000 0%, #000 28%, rgba(0,0,0,0.65) 48%, rgba(0,0,0,0.2) 64%, transparent 78%)',
-                  WebkitMaskRepeat: 'no-repeat',
-                  maskRepeat: 'no-repeat',
-                  WebkitMaskSize: '100% 100%',
-                  maskSize: '100% 100%',
-                }}
-              >
-                <motion.img
-                  src={focusPriorityBeacon}
-                  alt="FOCUS Priority Beacon"
-                  loading="eager"
-                  decoding="async"
-                  className="w-full h-full object-contain object-center scale-[1.1] filter saturate-[1.28] contrast-[1.08] brightness-[1.05] mix-blend-screen pointer-events-none select-none"
-                  animate={useFullDetailMotion ? { y: [-4, 4, -4] } : false}
-                  transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-                />
-              </div>
-
-              {/* Telemetry badge — sits above feather layers */}
-              <motion.div
-                variants={fadeUp}
-                className="absolute bottom-3 right-3 z-20 flex items-center gap-3 px-3.5 py-2 rounded-xl bg-[#060b18]/95 border border-cyan-500/30 shadow-[0_12px_32px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.15)]"
-              >
-                <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full bg-cyan-400${useFullDetailMotion ? ' animate-ping' : ''}`} />
-                  <div className="flex flex-col">
-                    <span className="text-[9px] text-cyan-300 font-mono tracking-widest uppercase font-semibold">Señal Activa</span>
-                    <strong className="text-white text-sm font-bold font-mono leading-tight">{priority.currentMetric}</strong>
-                  </div>
-                </div>
-
-                <div className={`px-2 py-0.5 rounded-md font-mono text-xs font-bold flex items-center gap-1 ${
-                  priority.deltaPercentage > 0
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                }`}>
-                  <TrendingUp className="w-3 h-3" />
-                  <span>{priority.deltaPercentage > 0 ? '+' : ''}{priority.deltaPercentage}%</span>
-                </div>
-              </motion.div>
-            </motion.figure>
-          </div>
-
-          {/* RIGHT COLUMN */}
-          <div className="lg:col-span-7 flex flex-col">
-
-            {/* Editorial Kicker */}
-            <motion.div
-              variants={fadeRight}
-              className="mb-8 pl-4 border-l-2 border-cyan-500/50"
-            >
-              <h3 className="text-2xl md:text-3xl font-semibold text-white tracking-tight leading-snug">
-                {priority.description}
-              </h3>
-            </motion.div>
-
-            {/* Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
-
-              <motion.article
-                custom={0}
-                variants={cardVariants}
-                className="group relative overflow-hidden rounded-[1.75rem] p-6 lg:p-7 border border-white/10 bg-[#0a1220]/95 shadow-[0_16px_36px_-8px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] border-b-2 border-b-cyan-500/80 transition-all duration-300 hover:border-b-cyan-400 hover:shadow-[0_20px_42px_-8px_rgba(6,182,212,0.35)] hover:-translate-y-1"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-[40px] pointer-events-none group-hover:bg-cyan-500/20 transition-all" />
-
-                <div className="flex items-center justify-between mb-5 relative z-10">
-                  <span className="w-7 h-7 rounded-lg bg-cyan-500/15 border border-cyan-500/30 font-mono text-cyan-300 text-xs font-bold flex items-center justify-center">
-                    01
-                  </span>
-                  <div className="px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10">
-                    <span className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">En curso</span>
-                  </div>
-                </div>
-
-                <h4 className="text-white text-base font-semibold uppercase tracking-wider mb-3">
-                  Situación Actual
-                </h4>
-
-                <p className="text-slate-300 text-sm leading-relaxed relative z-10">
-                  El indicador opera en <b className="text-cyan-300 font-semibold">{priority.currentMetric}</b>, lejos del ritmo que esta operación suele sostener.
-                </p>
-              </motion.article>
-
-              <motion.article
-                custom={1}
-                variants={cardVariants}
-                className="group relative overflow-hidden rounded-[1.75rem] p-6 lg:p-7 border border-white/10 bg-[#0a1220]/95 shadow-[0_16px_36px_-8px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] border-b-2 border-b-blue-500/80 transition-all duration-300 hover:border-b-blue-400 hover:shadow-[0_20px_42px_-8px_rgba(59,130,246,0.35)] hover:-translate-y-1"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-[40px] pointer-events-none group-hover:bg-blue-500/20 transition-all" />
-
-                <div className="flex items-center justify-between mb-5 relative z-10">
-                  <span className="w-7 h-7 rounded-lg bg-blue-500/15 border border-blue-500/30 font-mono text-blue-300 text-xs font-bold flex items-center justify-center">
-                    02
-                  </span>
-                  <div className="px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10">
-                    <span className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">Línea Base</span>
-                  </div>
-                </div>
-
-                <h4 className="text-white text-base font-semibold uppercase tracking-wider mb-3">
-                  Referencia Habitual
-                </h4>
-
-                <p className="text-slate-300 text-sm leading-relaxed relative z-10">
-                  El comportamiento esperado se mantiene cerca de <b className="text-blue-300 font-semibold">{priority.usualMetric}</b>. Ese contraste define la prioridad.
-                </p>
-              </motion.article>
-
-            </div>
-
-            {/* Deep-Dive Card */}
-            <motion.article
-              custom={2}
-              variants={cardVariants}
-              className="group relative overflow-hidden rounded-[2rem] p-7 lg:p-9 border border-white/10 bg-[#080e1a]/96 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.14)] border-b-2 border-b-purple-500/80 transition-all duration-300 hover:border-b-purple-400 hover:shadow-[0_24px_54px_-10px_rgba(168,85,247,0.3)]"
-            >
-              <div className="absolute top-0 right-1/4 w-72 h-40 bg-purple-500/10 rounded-full blur-[60px] pointer-events-none group-hover:bg-purple-500/20 transition-all" />
-
-              <div className="flex items-center gap-3 mb-5 relative z-10">
-                <div className="px-3.5 py-1 rounded-full bg-purple-500/15 border border-purple-400/30 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                  <span className="text-purple-300 font-mono text-[11px] uppercase tracking-widest font-bold">
-                    Lectura de FOCUS
-                  </span>
-                </div>
-              </div>
-
-              <p className="text-slate-200 text-base md:text-[1.05rem] leading-relaxed mb-7 relative z-10 font-normal">
-                FOCUS elevó este asunto porque concentra <b className="text-white font-semibold underline decoration-cyan-400/40 decoration-2 underline-offset-4">{priority.affectedCount} {priority.affectedUnit}</b>, con un deterioro de <b className="text-rose-300 font-semibold">{priority.deltaPercentage > 0 ? '+' : ''}{priority.deltaPercentage}%</b> frente a lo habitual. {priority.startedTimeAgo}{' '}
-                {priority.explanation.summaryText}
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-5 border-t border-white/10 relative z-10">
-                {[
-                  {
-                    label: 'Impacto',
-                    value: priority.explanation.impact,
-                    icon: AlertCircle,
-                    color: 'text-rose-300',
-                  },
-                  {
-                    label: 'Persistencia',
-                    value: priority.explanation.persistence,
-                    icon: Clock,
-                    color: 'text-cyan-300',
-                  },
-                  {
-                    label: 'Relevancia',
-                    value: priority.explanation.relevance,
-                    icon: CheckCircle2,
-                    color: 'text-purple-300',
-                  },
-                ].map((metric, i) => {
-                  const Icon = metric.icon;
-                  return (
-                    <motion.div
-                      key={metric.label}
-                      custom={i}
-                      variants={metricChipVariants}
-                      className="px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col justify-center"
-                    >
-                      <small className="text-slate-400 text-xs font-mono uppercase tracking-wider mb-1">{metric.label}</small>
-                      <strong className={`${metric.color} text-sm font-semibold flex items-center gap-1.5`}>
-                        <Icon className="w-3.5 h-3.5" />
-                        {metric.value}
-                      </strong>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </motion.article>
-
-          </div>
+      <div className="prio-sticky">
+        {/* Atmospheric Neon & Volumetric Glow Ambient */}
+        <div className="prio-ambient" aria-hidden="true">
+          <div className="prio-ambient__base" />
+          <div className="prio-ambient__grid" />
+          <div className="prio-ambient__halo-cyan" />
+          <div className="prio-ambient__halo-purple" />
+          <div className="prio-ambient__halo-rose" />
         </div>
 
-        {/* Scroll Cue */}
+        {/* ACTO 1: Apertura Editorial */}
         <motion.div
-          variants={fadeUp}
-          className="mt-5 sm:mt-6 flex flex-col items-center justify-center text-slate-500 text-xs font-mono tracking-widest uppercase gap-2"
+          className="prio-opening"
+          style={{ opacity: reduceMotion ? 1 : openingLayerOpacity }}
+          aria-hidden="true"
         >
-          <span>Desliza para entender por qué</span>
           <motion.div
-            animate={reduceMotion ? false : { y: [0, 6, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            className="prio-opening__badge"
+            style={{ opacity: reduceMotion ? 1 : openingBadgeOpacity }}
           >
-            <ChevronDown className="w-4 h-4 text-cyan-400/70" />
+            <span>01 / 07</span>
+            <i />
+            <strong>PRIORIDAD PRINCIPAL</strong>
           </motion.div>
+
+          <motion.p
+            className="prio-opening__line prio-opening__line--first"
+            style={{
+              opacity: reduceMotion ? 1 : openingFirstOpacity,
+              y: reduceMotion ? 0 : openingFirstY,
+            }}
+          >
+            El ruido fue descartado.
+          </motion.p>
+
+          <motion.p
+            className="prio-opening__line prio-opening__line--explain"
+            style={{
+              opacity: reduceMotion ? 1 : openingExplainOpacity,
+              y: reduceMotion ? 0 : openingExplainY,
+            }}
+          >
+            FOCUS aisló el <strong>asunto de mayor impacto</strong> para tu operación hoy.
+          </motion.p>
+
+          <motion.h2
+            className="prio-opening__headline"
+            style={{
+              opacity: reduceMotion ? 1 : openingHeadlineOpacity,
+              y: reduceMotion ? 0 : openingHeadlineY,
+            }}
+          >
+            {priority.headline}
+          </motion.h2>
         </motion.div>
 
-      </motion.div>
+        {/* ACTO 2 & ACTO 3: Stage Container */}
+        <motion.div
+          className="prio-stage"
+          style={{
+            opacity: reduceMotion ? 1 : stageOpacity,
+            scale: reduceMotion ? 1 : stageScale,
+            pointerEvents: useTransform(storyProgress, (p: number) =>
+              p >= 0.26 && p <= 0.82 ? 'auto' : 'none',
+            ),
+          }}
+        >
+          {/* Topline Bar */}
+          <div className="prio-stage__topline">
+            <span>
+              <Layers className="w-3.5 h-3.5 text-cyan-400" />
+              SIGNAL_CORE // 01.07 · ASUNTO PRIORITARIO AISLADO
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+              TELEMETRY: ACTIVE
+            </span>
+          </div>
+
+          <div className="prio-stage__content">
+            {/* ACTO 2: Beacon Holográfico & Contraste Operacional (0.26 - 0.54) */}
+            <motion.div
+              className="prio-act-contrast"
+              style={{
+                opacity: reduceMotion ? 1 : act2Opacity,
+                y: reduceMotion ? 0 : act2Y,
+                display: useTransform(storyProgress, (p: number) =>
+                  p >= 0.24 && p <= 0.55 ? 'flex' : 'none',
+                ),
+              }}
+            >
+              <div className="prio-contrast-layout">
+                {/* Left: 3D Holographic Beacon Plate */}
+                <motion.figure
+                  className="prio-beacon-visual"
+                  style={{
+                    scale: reduceMotion ? 1 : beaconScale,
+                    opacity: reduceMotion ? 1 : beaconOpacity,
+                  }}
+                >
+                  <div className="prio-beacon-visual__halo" aria-hidden="true" />
+                  
+                  {/* Orbiting Laser Geometry */}
+                  <svg
+                    className="prio-beacon-visual__orbits"
+                    viewBox="0 0 420 360"
+                    aria-hidden="true"
+                  >
+                    <ellipse
+                      cx="210"
+                      cy="210"
+                      rx="170"
+                      ry="58"
+                      fill="none"
+                      stroke="rgba(101, 217, 255, 0.4)"
+                      strokeWidth="1"
+                      strokeDasharray="5 9"
+                    />
+                    <ellipse
+                      cx="210"
+                      cy="210"
+                      rx="188"
+                      ry="74"
+                      fill="none"
+                      stroke="rgba(147, 197, 253, 0.22)"
+                      strokeWidth="0.8"
+                      transform="rotate(-12 210 210)"
+                    />
+                    <circle cx="105" cy="180" r="3" fill="#38bdf8" />
+                    <circle cx="325" cy="235" r="2.5" fill="#c084fc" />
+                  </svg>
+
+                  {/* 3D Beacon Crystal Media */}
+                  <div className="prio-beacon-visual__plate">
+                    <motion.img
+                      src={focusPriorityBeacon}
+                      alt="FOCUS Priority Beacon"
+                      loading="eager"
+                      decoding="async"
+                      className="prio-beacon-visual__img"
+                      animate={useFullDetailMotion ? { y: [-3, 3, -3] } : false}
+                      transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                  </div>
+
+                  {/* Live Telemetry Pill */}
+                  <div className="prio-beacon-visual__pill">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                      <div className="flex flex-col">
+                        <span className="text-[9px] text-cyan-300 font-mono tracking-widest uppercase font-semibold">
+                          Señal Activa
+                        </span>
+                        <strong className="text-white text-sm font-bold font-mono leading-tight">
+                          {priority.currentMetric}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`px-2 py-0.5 rounded-md font-mono text-xs font-bold flex items-center gap-1 ${
+                        priority.deltaPercentage > 0
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                          : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      }`}
+                    >
+                      <TrendingUp className="w-3 h-3" />
+                      <span>
+                        {priority.deltaPercentage > 0 ? '+' : ''}
+                        {priority.deltaPercentage}%
+                      </span>
+                    </div>
+                  </div>
+                </motion.figure>
+
+                {/* Right: State Comparison Cards */}
+                <div className="prio-contrast-cards">
+                  {/* Card 1: Situación Actual (Critical) */}
+                  <motion.article
+                    className="prio-card prio-card--current"
+                    style={{
+                      opacity: reduceMotion ? 1 : cardCurrentOpacity,
+                      x: reduceMotion ? 0 : cardCurrentX,
+                    }}
+                  >
+                    <div className="prio-card__specular" />
+                    <div className="prio-card__header">
+                      <div className="prio-card__label-group">
+                        <div className="prio-card__icon is-alert">
+                          <Flame className="w-4 h-4 text-rose-400" />
+                        </div>
+                        <span className="prio-card__label">Situación Actual</span>
+                      </div>
+                      <span className="prio-card__badge is-alert">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                        DESVIACIÓN CRÍTICA
+                      </span>
+                    </div>
+
+                    <h3 className="prio-card__value text-rose-200">{priority.currentMetric}</h3>
+                    <p className="prio-card__sub text-rose-300/80">Ritmo observado en tiempo real</p>
+                    <p className="prio-card__desc">
+                      El indicador opera significativamente alejado del estándar de referencia que la operación suele sostener.
+                    </p>
+                  </motion.article>
+
+                  {/* Divergence Pill */}
+                  <motion.div
+                    className="prio-divergence-pill"
+                    style={{
+                      opacity: reduceMotion ? 1 : divergencePillOpacity,
+                      scale: reduceMotion ? 1 : divergencePillScale,
+                    }}
+                  >
+                    <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>DIVERGENCIA CONFIRMADA: +{priority.deltaPercentage}%</span>
+                  </motion.div>
+
+                  {/* Card 2: Línea Base Habitual */}
+                  <motion.article
+                    className="prio-card prio-card--baseline"
+                    style={{
+                      opacity: reduceMotion ? 1 : cardBaseOpacity,
+                      x: reduceMotion ? 0 : cardBaseX,
+                    }}
+                  >
+                    <div className="prio-card__specular" />
+                    <div className="prio-card__header">
+                      <div className="prio-card__label-group">
+                        <div className="prio-card__icon is-base">
+                          <Clock3 className="w-4 h-4 text-blue-400" />
+                        </div>
+                        <span className="prio-card__label">Referencia Habitual</span>
+                      </div>
+                      <span className="prio-card__badge is-base">LÍNEA BASE</span>
+                    </div>
+
+                    <h3 className="prio-card__value text-blue-200">{priority.usualMetric}</h3>
+                    <p className="prio-card__sub text-blue-300/80">Comportamiento histórico normal</p>
+                    <p className="prio-card__desc">
+                      El comportamiento esperado se mantiene cerca de este nivel de estabilidad. Ese contraste define la prioridad.
+                    </p>
+                  </motion.article>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* ACTO 3: Lectura Diagnóstica de FOCUS & 3 Dimensiones (0.54 - 0.82) */}
+            <motion.div
+              className="prio-act-deepdive"
+              style={{
+                opacity: reduceMotion ? 1 : act3Opacity,
+                y: reduceMotion ? 0 : act3Y,
+                display: useTransform(storyProgress, (p: number) =>
+                  p >= 0.52 && p <= 0.84 ? 'flex' : 'none',
+                ),
+              }}
+            >
+              <div className="prio-deepdive-layout">
+                {/* Main Diagnostic Insight Card */}
+                <article className="prio-deepdive-main">
+                  <div className="prio-deepdive-main__specular" />
+                  <div className="prio-deepdive-main__header">
+                    <div className="prio-deepdive-main__badge">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+                      <span>DIAGNÓSTICO SISTÉMICO // LECTURA DE FOCUS</span>
+                    </div>
+                    <span className="text-xs font-mono text-purple-300/70">
+                      {priority.startedTimeAgo}
+                    </span>
+                  </div>
+
+                  <p className="prio-deepdive-main__lead">
+                    FOCUS elevó este asunto porque concentra{' '}
+                    <strong className="text-white underline decoration-cyan-400/40 decoration-2 underline-offset-4 font-semibold">
+                      {priority.affectedCount} {priority.affectedUnit}
+                    </strong>
+                    , con un deterioro de{' '}
+                    <strong className="text-rose-300 font-bold">
+                      {priority.deltaPercentage > 0 ? '+' : ''}
+                      {priority.deltaPercentage}%
+                    </strong>{' '}
+                    frente a su ritmo operativo habitual.{' '}
+                    <span className="text-slate-300 font-normal">
+                      {priority.explanation.summaryText}
+                    </span>
+                  </p>
+
+                  <div className="prio-deepdive-main__kicker">
+                    <Radio className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                    <span>AFECTACIÓN DIRECTA AISLADA EN CADENA CRÍTICA</span>
+                  </div>
+                </article>
+
+                {/* 3 Pillars Cards (Impact, Persistence, Relevance) */}
+                <div className="prio-deepdive-pillars">
+                  {/* Pillar 1: Impacto */}
+                  <motion.div
+                    className="prio-pillar prio-pillar--impact"
+                    style={{
+                      opacity: reduceMotion ? 1 : chipOneOpacity,
+                      y: reduceMotion ? 0 : chipOneY,
+                    }}
+                  >
+                    <div className="prio-pillar__icon">
+                      <AlertCircle className="w-4 h-4 text-rose-400" />
+                    </div>
+                    <div className="prio-pillar__info">
+                      <small className="prio-pillar__tag text-rose-300">DIMENSIÓN 01</small>
+                      <h4 className="prio-pillar__title">Impacto Operacional</h4>
+                      <strong className="prio-pillar__value text-rose-200">
+                        {priority.explanation.impact}
+                      </strong>
+                    </div>
+                    <span className="prio-pillar__badge bg-rose-500/15 border-rose-500/30 text-rose-300">
+                      ALTO
+                    </span>
+                  </motion.div>
+
+                  {/* Pillar 2: Persistencia */}
+                  <motion.div
+                    className="prio-pillar prio-pillar--persistence"
+                    style={{
+                      opacity: reduceMotion ? 1 : chipTwoOpacity,
+                      y: reduceMotion ? 0 : chipTwoY,
+                    }}
+                  >
+                    <div className="prio-pillar__icon">
+                      <Clock className="w-4 h-4 text-cyan-400" />
+                    </div>
+                    <div className="prio-pillar__info">
+                      <small className="prio-pillar__tag text-cyan-300">DIMENSIÓN 02</small>
+                      <h4 className="prio-pillar__title">Persistencia Temporal</h4>
+                      <strong className="prio-pillar__value text-cyan-200">
+                        {priority.explanation.persistence}
+                      </strong>
+                    </div>
+                    <span className="prio-pillar__badge bg-cyan-500/15 border-cyan-500/30 text-cyan-300">
+                      CONTINUO
+                    </span>
+                  </motion.div>
+
+                  {/* Pillar 3: Relevancia */}
+                  <motion.div
+                    className="prio-pillar prio-pillar--relevance"
+                    style={{
+                      opacity: reduceMotion ? 1 : chipThreeOpacity,
+                      y: reduceMotion ? 0 : chipThreeY,
+                    }}
+                  >
+                    <div className="prio-pillar__icon">
+                      <CheckCircle2 className="w-4 h-4 text-purple-400" />
+                    </div>
+                    <div className="prio-pillar__info">
+                      <small className="prio-pillar__tag text-purple-300">DIMENSIÓN 03</small>
+                      <h4 className="prio-pillar__title">Relevancia Estratégica</h4>
+                      <strong className="prio-pillar__value text-purple-200">
+                        {priority.explanation.relevance}
+                      </strong>
+                    </div>
+                    <span className="prio-pillar__badge bg-purple-500/15 border-purple-500/30 text-purple-300">
+                      ESTRATÉGICO
+                    </span>
+                  </motion.div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Bottom Status & Step Navigation Bar */}
+          <div className="prio-stage__bottom">
+            <div className="prio-step-indicator">
+              <PrioStepDot active={stepOneActive} label="01 · CONTRASTE OPERACIONAL" />
+              <PrioStepDot active={stepTwoActive} label="02 · DIAGNÓSTICO DE FOCUS" />
+              <PrioStepDot active={stepThreeActive} label="03 · SÍNTESIS" />
+            </div>
+
+            <span className="text-[10px] font-mono text-cyan-300/70 uppercase tracking-wider">
+              {priority.affectedCount} {priority.affectedUnit.toUpperCase()} // +{priority.deltaPercentage}% DESVÍO
+            </span>
+          </div>
+        </motion.div>
+
+        {/* ACTO 4: Conclusión Editorial y Handoff (0.82 - 1.00) */}
+        <motion.div
+          className="prio-conclusion"
+          style={{
+            opacity: reduceMotion ? 1 : conclusionOpacity,
+            y: reduceMotion ? 0 : conclusionY,
+            scale: reduceMotion ? 1 : conclusionScale,
+            pointerEvents: useTransform(storyProgress, (p: number) =>
+              p >= 0.82 ? 'auto' : 'none',
+            ),
+          }}
+          aria-label="Conclusión editorial de prioridad"
+        >
+          <div className="prio-conclusion__badge">
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            <span>
+              ASUNTO PRIORITARIO IDENTIFICADO · ACCIÓN AISLADA
+            </span>
+          </div>
+
+          <h3 className="prio-conclusion__headline">
+            Ya sabes cuál es la prioridad.
+          </h3>
+
+          <p className="prio-conclusion__sub">
+            Ahora profundicemos en las razones: cuatro factores convergentes que explican exactamente por qué ocurrió.
+          </p>
+
+          <div className="prio-conclusion__chips">
+            <span className="prio-conclusion__chip">
+              AFECTACIÓN: {priority.affectedCount} {priority.affectedUnit.toUpperCase()}
+            </span>
+            <span className="prio-conclusion__chip">
+              DESVÍO: +{priority.deltaPercentage}%
+            </span>
+            <span className="prio-conclusion__chip">
+              ORIGEN CONFIRMADO
+            </span>
+          </div>
+
+          {onContinue && (
+            <button
+              type="button"
+              className="prio-conclusion__cta"
+              onClick={onContinue}
+              aria-label="Continuar al capítulo Por Qué"
+            >
+              <span>Explorar las 4 razones en Por Qué</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
+        </motion.div>
+      </div>
     </section>
   );
 };
+
+const PrioStepDot: React.FC<{
+  active: ReturnType<typeof useTransform<number, boolean>>;
+  label: string;
+}> = ({ active, label }) => {
+  const [isActive, setIsActive] = React.useState(false);
+
+  React.useEffect(() => {
+    return active.on('change', (v) => setIsActive(v));
+  }, [active]);
+
+  return (
+    <span className={`prio-step-dot ${isActive ? 'is-active' : ''}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+      {label}
+    </span>
+  );
+};
+

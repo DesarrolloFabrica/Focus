@@ -170,7 +170,7 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes 
       id="section-chapter-changes"
       className="chg-section select-none"
       data-chapter="changes"
-      aria-label="04 / 07 · Cambios: evolución y eventos observados"
+      aria-label="03 / 07 · Cambios: evolución y eventos observados"
     >
       <div className="chg-sticky">
         {/* Atmospheric Ambient Stage */}
@@ -191,7 +191,7 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes 
             className="chg-opening__badge"
             style={{ opacity: reduceMotion ? 1 : openingBadgeOpacity }}
           >
-            <span>04 / 07</span>
+            <span>03 / 07</span>
             <i />
             <strong>CAMBIOS</strong>
           </motion.div>
@@ -242,7 +242,7 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes 
           <div className="chg-stage__topline">
             <span>
               <Layers />
-              CHRONO_REF // 04.07 · EVOLUCIÓN OPERACIONAL
+              CHRONO_REF // 03.07 · EVOLUCIÓN OPERACIONAL
             </span>
             <span>STREAM_DELTA: ACTIVE</span>
           </div>

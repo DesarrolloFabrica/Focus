@@ -11,6 +11,7 @@ import {
   Radar,
   Settings2,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import focusObservatory from '../../assets/focus-observatory.webp';
 import focusObservatoryLoop from '../../assets/animacion-aro-opt.mp4';
@@ -251,6 +252,23 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
     }
   }, [isFolding, remeasure]);
 
+  useEffect(() => {
+    if (isBriefingActive || isStartingTransition) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+
+      if (e.key === ' ' || (e.key === 'Enter' && (document.activeElement === document.body || document.activeElement?.id === 'btn-start-briefing'))) {
+        e.preventDefault();
+        onStartBriefing();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isBriefingActive, isStartingTransition, onStartBriefing]);
+
   return (
     <section
       ref={sectionRef}
@@ -278,13 +296,6 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
               <strong>FOCUS</strong>
             </button>
 
-            <div className="iv-intro-nav__links" aria-hidden="true">
-              <span className="is-active">Inicio</span>
-              <span>Briefing</span>
-              <span>Señales</span>
-              <span>Contexto</span>
-            </div>
-
             <div className="iv-intro-nav__actions">
               {onOpenDemo && (
                 <button
@@ -301,7 +312,7 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
                 id="btn-start-briefing"
                 type="button"
                 className="iv-intro-nav__cta"
-                onClick={onStartBriefing}
+                onClick={() => onStartBriefing()}
                 disabled={isStartingTransition || isBriefingActive}
               >
                 <span>{isStartingTransition ? 'Abriendo briefing' : 'Iniciar briefing'}</span>
@@ -483,12 +494,14 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
                 </svg>
               )}
 
-              <motion.div
+              <motion.button
                 id="iv-intro-core"
                 ref={coreRef}
-                className={`iv-intro-core${activeSignalId ? ' is-listening' : ''}`}
+                type="button"
+                className={`iv-intro-core iv-intro-core--interactive${activeSignalId ? ' is-listening' : ''}`}
                 tabIndex={isFolding ? -1 : 0}
-                aria-label={`Núcleo interactivo de FOCUS. Estado: ${activeSignal?.label ?? (isStable ? 'Operación estable' : 'Observando la operación')}`}
+                onClick={() => onStartBriefing()}
+                aria-label={`Núcleo interactivo de FOCUS. Clic para iniciar briefing completo. Estado: ${activeSignal?.label ?? (isStable ? 'Operación estable' : 'Observando la operación')}`}
                 initial={reduceMotion ? false : { opacity: 0, scale: 0.94 }}
                 animate={{ opacity: isFolding ? 0 : 1, scale: isFolding ? 0.9 : 1 }}
                 transition={{ duration: reduceMotion ? 0.01 : isFolding ? 0.62 : 0.65, delay: reduceMotion ? 0 : isFolding ? 0 : 0.38, ease }}
@@ -497,11 +510,11 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
                 <div className="iv-intro-core__caption">
                   <span className="iv-intro-core__orbital-badge">
                     <i />
-                    <b>{activeSignal ? activeSignal.label.toUpperCase() : 'ANÁLISIS COMPLETO'}</b>
-                    <small>· 14 FUENTES</small>
+                    <b>{activeSignal ? activeSignal.label.toUpperCase() : 'INICIAR BRIEFING'}</b>
+                    <small>· {activeSignal ? '14 FUENTES' : 'CLIC PARA EXPLORAR'}</small>
                   </span>
                 </div>
-              </motion.div>
+              </motion.button>
 
               {/* Conexión sutil entre Core y Status Strip */}
               <div className="iv-intro-stage__core-beam" aria-hidden="true" />
@@ -509,18 +522,21 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
               {signalCards.map(({ id, label, value, detail, Icon, position }, index) => {
                 const isActive = activeSignalId === id;
                 return (
-                  <motion.article
+                  <motion.button
                     key={id}
                     ref={(node) => {
                       signalRefs.current[id] = node;
                       if (node) remeasure();
                     }}
+                    type="button"
                     className={`iv-intro-signal iv-intro-signal--${id} iv-intro-signal--${position}${isActive ? ' is-active' : ''}`}
+                    onClick={() => onStartBriefing()}
                     onMouseEnter={() => !isFolding && setHoveredSignal(id)}
                     onMouseLeave={() => setHoveredSignal(null)}
                     onFocus={() => !isFolding && setHoveredSignal(id)}
                     onBlur={() => setHoveredSignal(null)}
                     tabIndex={isFolding ? -1 : 0}
+                    aria-label={`${label}: ${value}. ${detail}. Clic para iniciar briefing.`}
                     initial={reduceMotion ? false : { opacity: 0, x: position.includes('left') ? -18 : 18, y: 10 }}
                     animate={{
                       opacity: isFolding ? 0 : 1,
@@ -555,58 +571,112 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
                     <div className={`iv-intro-signal__socket iv-intro-signal__socket--${position.includes('left') ? 'right' : 'left'}`} aria-hidden="true">
                       <span className="iv-intro-signal__socket-led" />
                     </div>
-                  </motion.article>
+                  </motion.button>
                 );
               })}
             </div>
 
             {/* Contextual Status Strip (bottom) */}
+            <div className="iv-intro-trust-zone">
             <motion.div
               className="iv-intro-trust"
               aria-label="Capa de confianza del sistema"
               {...reveal(0.72, 12)}
             >
-              <div className="iv-intro-trust__person">
-                <span className="iv-intro-trust__avatars" aria-hidden="true">
-                  <i>A</i>
-                  <i>V</i>
-                  <i>S</i>
-                </span>
-                <p>
-                  <strong>Briefing preparado</strong>
-                  <small>para {briefing.userName}</small>
-                </p>
+              {/* Rotating Laser Border Beam */}
+              <div className="iv-intro-trust__beam-layer" aria-hidden="true">
+                <div className="iv-intro-trust__beam-rotator" />
               </div>
 
-              <div className="iv-intro-trust__metric">
-                <strong className="is-cyan">100%</strong>
-                <small>Operación analizada</small>
-              </div>
+              {/* Ambient Glow */}
+              <div className="iv-intro-trust__ambient-glow" aria-hidden="true" />
 
-              <div className="iv-intro-trust__metric">
-                <strong className="is-white">{briefing.detectedCount}</strong>
-                <small>Señales clave</small>
-              </div>
+              {/* Inner Content Grid */}
+              <div className="iv-intro-trust__body">
+                <button
+                  type="button"
+                  className="iv-intro-trust__person iv-intro-trust__person--interactive"
+                  onClick={() => onStartBriefing()}
+                  aria-label={`Iniciar briefing preparado para ${briefing.userName}`}
+                >
+                  <span className="iv-intro-trust__avatars" aria-hidden="true">
+                    <i>A</i>
+                    <i>V</i>
+                    <i>S</i>
+                  </span>
+                  <p>
+                    <strong>Briefing preparado</strong>
+                    <small>para {briefing.userName}</small>
+                  </p>
+                </button>
 
-              <div className="iv-intro-trust__metric">
-                <strong className="is-white">14</strong>
-                <small>Fuentes conectadas</small>
-              </div>
+                <div className="iv-intro-trust__metric iv-intro-trust__metric--tooltip">
+                  <strong className="is-cyan">100%</strong>
+                  <small>Operación analizada</small>
+                  <div className="iv-intro-trust__popover" role="tooltip">
+                    <span>Análisis completo de infraestructura, servicios y señales operativas.</span>
+                  </div>
+                </div>
 
-              <div className="iv-intro-trust__metric">
-                <strong className="is-live">24/7</strong>
-                <small>Monitoreo activo</small>
-              </div>
+                <div className="iv-intro-trust__metric iv-intro-trust__metric--tooltip">
+                  <strong className="is-white">{briefing.detectedCount}</strong>
+                  <small>Señales clave</small>
+                  <div className="iv-intro-trust__popover" role="tooltip">
+                    <span>{briefing.dimensions.prioritiesCount} prioridades, {briefing.dimensions.changesCount} cambios y {briefing.dimensions.anomaliesCount} anomalías detectadas.</span>
+                  </div>
+                </div>
 
-              <span className="iv-intro-trust__ready">
-                <Check aria-hidden="true" /> Contexto listo
-              </span>
+                <div className="iv-intro-trust__metric iv-intro-trust__metric--tooltip">
+                  <strong className="is-white">14</strong>
+                  <small>Fuentes conectadas</small>
+                  <div className="iv-intro-trust__popover iv-intro-trust__popover--sources" role="tooltip">
+                    <span className="iv-intro-trust__popover-heading">Fuentes operativas conectadas</span>
+                    <div className="iv-intro-trust__sources-grid">
+                      <span>AWS</span>
+                      <span>Datadog</span>
+                      <span>Jira</span>
+                      <span>GitHub</span>
+                      <span>Slack</span>
+                      <span>PagerDuty</span>
+                      <span>Sentry</span>
+                      <span>Linear</span>
+                      <span>Notion</span>
+                      <span>Kubernetes</span>
+                      <span>Postgres</span>
+                      <span>Stripe</span>
+                      <span>Cloudflare</span>
+                      <span>Redis</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="iv-intro-trust__metric">
+                  <strong className="is-live">24/7</strong>
+                  <small>Monitoreo activo</small>
+                </div>
+
+                {/* Ultra-Premium Contexto Listo Button */}
+                <button
+                  type="button"
+                  className="iv-intro-trust__ready iv-intro-trust__ready--premium"
+                  onClick={() => onStartBriefing()}
+                  aria-label="Iniciar briefing, contexto listo"
+                >
+                  <span className="iv-intro-trust__ready-shimmer" aria-hidden="true" />
+                  <span className="iv-intro-trust__ready-icon" aria-hidden="true">
+                    <Check />
+                  </span>
+                  <span className="iv-intro-trust__ready-text">Contexto listo</span>
+                  <ArrowRight className="iv-intro-trust__ready-arrow" aria-hidden="true" />
+                </button>
+              </div>
             </motion.div>
 
-            <motion.div className="iv-intro__cta-meta" {...reveal(0.82, 8)}>
-              <i />
-              <span>{briefing.estimatedReadTime} · lectura guiada</span>
+            <motion.div className="iv-intro__footer-note" {...reveal(0.82, 8)}>
+              <Sparkles aria-hidden="true" />
+              <span>Al completar el briefing se habilitan Ask, modo investigación y análisis detallado</span>
             </motion.div>
+            </div>
           </div>
 
           {showBriefing ? (

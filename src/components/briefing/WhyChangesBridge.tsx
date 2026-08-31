@@ -70,7 +70,7 @@ export const WhyChangesBridge: React.FC<WhyChangesBridgeProps> = ({ conclusion }
           style={{ opacity: reduceMotion ? 1 : eyebrowOpacity }}
           aria-hidden="true"
         >
-          <span className="iv-noise-filter-transition__eyebrow-step">03 → 04</span>
+          <span className="iv-noise-filter-transition__eyebrow-step">02 → 03</span>
           <span className="iv-noise-filter-transition__eyebrow-sep">/</span>
           <span className="iv-noise-filter-transition__eyebrow-label">DE POR QUÉ A CAMBIOS</span>
         </motion.div>

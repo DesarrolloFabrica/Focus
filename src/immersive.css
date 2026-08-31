@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --iv-ink: #05070a;
   --iv-ink-soft: #09111d;
   --iv-navy: #071426;
@@ -4008,10 +4008,10 @@
 .iv-intro-nav {
   position: relative;
   z-index: 30;
-  display: grid;
-  flex: 0 0 auto;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+  flex: 0 0 auto;
   height: 70px;
   padding: 0 28px;
 }
@@ -4025,6 +4025,7 @@
   border: 0;
   background: transparent;
   color: white;
+  cursor: pointer;
 }
 
 .iv-intro-brand > span {
@@ -4063,33 +4064,6 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.22em;
-}
-
-.iv-intro-nav__links {
-  display: flex;
-  align-items: center;
-  gap: clamp(24px, 3vw, 48px);
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 9px;
-}
-
-.iv-intro-nav__links span {
-  position: relative;
-}
-
-.iv-intro-nav__links span.is-active {
-  color: var(--iv-cyan);
-}
-
-.iv-intro-nav__links span.is-active::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: -8px;
-  left: 0;
-  height: 1px;
-  background: var(--iv-cyan);
-  box-shadow: 0 0 8px rgba(101, 217, 255, 0.5);
 }
 
 .iv-intro-nav__actions {
