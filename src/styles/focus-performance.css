@@ -521,8 +521,412 @@
   filter: none !important;
 }
 
+#section-chapter-changes {
+  contain: paint style;
+  isolation: isolate;
+}
+
+#section-chapter-changes .focus-changes__organic {
+  transform: translateZ(0);
+  pointer-events: none;
+}
+
+@keyframes focus-changes-spine-flow {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(100%); }
+}
+
+[data-perf='high'] #section-chapter-changes .focus-changes__spine-pulse {
+  animation: focus-changes-spine-flow 5s linear infinite;
+}
+
+[data-perf='balanced'] #section-chapter-changes .focus-changes__orbit-ring,
+[data-perf='lite'] #section-chapter-changes .focus-changes__orbit-ring,
+[data-perf='balanced'] #section-chapter-changes .focus-changes__spine-pulse,
+[data-perf='lite'] #section-chapter-changes .focus-changes__spine-pulse {
+  animation: none !important;
+}
+
+[data-perf='lite'] #section-chapter-changes .focus-changes__organic {
+  display: none !important;
+}
+
+[data-perf='balanced'] #section-chapter-changes .animate-pulse,
+[data-perf='lite'] #section-chapter-changes .animate-pulse,
+[data-perf='balanced'] #section-chapter-changes .animate-bounce,
+[data-perf='lite'] #section-chapter-changes .animate-bounce {
+  animation: none !important;
+}
+
+[data-inview='false'] #section-chapter-changes .focus-changes__orbit-ring,
+[data-inview='false'] #section-chapter-changes .focus-changes__spine-pulse,
+[data-inview='false'] #section-chapter-changes .focus-changes__ambient-glow.is-animated {
+  animation-play-state: paused !important;
+}
+
+[data-inview='false'] #section-chapter-changes .focus-changes__organic {
+  visibility: hidden;
+}
+
+[data-perf='balanced'] #section-chapter-changes .focus-changes__comparison-card,
+[data-perf='balanced'] #section-chapter-changes .focus-changes__event-card {
+  transition-duration: 220ms;
+}
+
 /* -------------------------------------------------------------------------
-   7. Respeto a "reducir movimiento" del sistema
+   7. Capitulo Prioridad (.iv-priority-section)
+   La version nueva usa Tailwind blur-* que no heredaba las reglas de
+   .iv-priority. Se sustituyen blurs enormes por radios moderados.
+   ------------------------------------------------------------------------- */
+.iv-priority-section {
+  contain: paint style;
+  isolation: isolate;
+}
+
+.iv-priority-section__ambient-orb {
+  transform: translateZ(0);
+  pointer-events: none;
+}
+
+[data-perf='high'] .iv-priority-section [class*='blur-[100px]'] {
+  filter: blur(40px) !important;
+}
+
+[data-perf='high'] .iv-priority-section [class*='blur-[70px]'] {
+  filter: blur(32px) !important;
+}
+
+[data-perf='balanced'] .iv-priority-section [class*='blur-[100px]'] {
+  filter: blur(28px) !important;
+}
+
+[data-perf='balanced'] .iv-priority-section [class*='blur-[70px]'] {
+  filter: blur(22px) !important;
+}
+
+[data-perf='lite'] .iv-priority-section [class*='blur-[100px]'],
+[data-perf='lite'] .iv-priority-section [class*='blur-[70px]'] {
+  filter: blur(16px) !important;
+}
+
+[data-perf='balanced'] .iv-priority-section .backdrop-blur-xl,
+[data-perf='balanced'] .iv-priority-section [class*='backdrop-blur'] {
+  -webkit-backdrop-filter: blur(8px) saturate(118%) !important;
+  backdrop-filter: blur(8px) saturate(118%) !important;
+}
+
+[data-perf='lite'] .iv-priority-section .backdrop-blur-xl,
+[data-perf='lite'] .iv-priority-section [class*='backdrop-blur'] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+[data-perf='lite'] .iv-priority-section .iv-priority-section__ambient-orb.is-animated {
+  animation: none !important;
+}
+
+[data-perf='balanced'] .iv-priority-section .animate-ping,
+[data-perf='lite'] .iv-priority-section .animate-ping {
+  animation: none !important;
+}
+
+/* -------------------------------------------------------------------------
+   8. Capitulo Por que (#section-chapter-why)
+   El reactor SVG + canvas + cristal esmerilado es el tramo mas caro del
+   briefing. Se reduce el coste sin quitar la narrativa de scroll.
+   ------------------------------------------------------------------------- */
+#section-chapter-why {
+  contain: paint style;
+  isolation: isolate;
+}
+
+#section-chapter-why .why-content-stack {
+  contain: layout style;
+}
+
+#section-chapter-why [aria-hidden='true'] *,
+#section-chapter-why [aria-hidden='true'] *::before,
+#section-chapter-why [aria-hidden='true'] *::after {
+  animation-play-state: paused !important;
+}
+
+#section-chapter-why [aria-hidden='true'] canvas {
+  visibility: hidden;
+}
+
+#section-chapter-why .why-atmosphere-glow {
+  transform: translateZ(0);
+  pointer-events: none;
+}
+
+@keyframes why-laser-pulse-flow {
+  0% { stroke-dashoffset: 280; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes why-border-beam-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes why-gyro-cw {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes why-gyro-ccw {
+  0% { transform: rotate(360deg); }
+  100% { transform: rotate(0deg); }
+}
+
+#section-chapter-why .anim-conduit-pulse {
+  stroke-dasharray: 30 160;
+  animation: why-laser-pulse-flow 2.2s linear infinite;
+}
+
+#section-chapter-why .anim-gyro-cw {
+  transform-origin: 300px 260px;
+  animation: why-gyro-cw 48s linear infinite;
+}
+
+#section-chapter-why .anim-gyro-ccw {
+  transform-origin: 300px 260px;
+  animation: why-gyro-ccw 64s linear infinite;
+}
+
+#section-chapter-why .border-beam-badge {
+  position: relative;
+  overflow: hidden;
+}
+
+#section-chapter-why .border-beam-badge::before {
+  content: '';
+  position: absolute;
+  inset: -150%;
+  background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 280deg, #38bdf8 320deg, #c084fc 360deg);
+  animation: why-border-beam-spin 4.5s linear infinite;
+  pointer-events: none;
+}
+
+[data-perf='high'] #section-chapter-why [class*='blur-[140px]'] {
+  filter: blur(52px) !important;
+}
+
+[data-perf='high'] #section-chapter-why [class*='blur-[100px]'] {
+  filter: blur(38px) !important;
+}
+
+[data-perf='balanced'] #section-chapter-why [class*='blur-[140px]'] {
+  filter: blur(36px) !important;
+}
+
+[data-perf='balanced'] #section-chapter-why [class*='blur-[100px]'] {
+  filter: blur(28px) !important;
+}
+
+[data-perf='balanced'] #section-chapter-why .blur-3xl {
+  filter: blur(22px) !important;
+}
+
+[data-perf='lite'] #section-chapter-why [class*='blur-[140px]'],
+[data-perf='lite'] #section-chapter-why [class*='blur-[100px]'],
+[data-perf='lite'] #section-chapter-why .blur-3xl {
+  filter: blur(18px) !important;
+}
+
+[data-perf='balanced'] #section-chapter-why .backdrop-blur-xl,
+[data-perf='balanced'] #section-chapter-why .backdrop-blur-2xl,
+[data-perf='balanced'] #section-chapter-why .backdrop-blur-md {
+  -webkit-backdrop-filter: blur(8px) saturate(118%) !important;
+  backdrop-filter: blur(8px) saturate(118%) !important;
+}
+
+[data-perf='lite'] #section-chapter-why .backdrop-blur-xl,
+[data-perf='lite'] #section-chapter-why .backdrop-blur-2xl,
+[data-perf='lite'] #section-chapter-why .backdrop-blur-md {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+[data-perf='balanced'] #section-chapter-why [filter='url(#focus-glow)'],
+[data-perf='lite'] #section-chapter-why [filter='url(#focus-glow)'] {
+  filter: none !important;
+}
+
+[data-perf='balanced'] #section-chapter-why .anim-conduit-pulse,
+[data-perf='balanced'] #section-chapter-why .anim-gyro-cw,
+[data-perf='balanced'] #section-chapter-why .anim-gyro-ccw,
+[data-perf='balanced'] #section-chapter-why .border-beam-badge::before,
+[data-perf='lite'] #section-chapter-why .anim-conduit-pulse,
+[data-perf='lite'] #section-chapter-why .anim-gyro-cw,
+[data-perf='lite'] #section-chapter-why .anim-gyro-ccw,
+[data-perf='lite'] #section-chapter-why .border-beam-badge::before {
+  animation: none !important;
+}
+
+[data-perf='lite'] #section-chapter-why canvas {
+  display: none !important;
+}
+
+[data-inview='false'] #section-chapter-why canvas {
+  visibility: hidden;
+}
+
+/* -------------------------------------------------------------------------
+   10. Capitulo Anomalia (#section-chapter-anomaly)
+   Scroll-blur desactivado en TS para balanced/lite; aqui se limitan blurs
+   decorativos y filtros SVG fuera de pantalla.
+   ------------------------------------------------------------------------- */
+#section-chapter-anomaly {
+  contain: paint style;
+  isolation: isolate;
+}
+
+[data-perf='balanced'] #section-chapter-anomaly [style*='filter: blur'],
+[data-perf='lite'] #section-chapter-anomaly [style*='filter: blur'] {
+  filter: none !important;
+}
+
+[data-perf='high'] #section-chapter-anomaly [class*='blur-['] {
+  filter: blur(36px) !important;
+}
+
+[data-perf='balanced'] #section-chapter-anomaly [class*='blur-['] {
+  filter: blur(24px) !important;
+}
+
+[data-perf='lite'] #section-chapter-anomaly [class*='blur-['] {
+  filter: blur(14px) !important;
+}
+
+[data-perf='balanced'] #section-chapter-anomaly [filter='url(#aex-soft-glow)'],
+[data-perf='lite'] #section-chapter-anomaly [filter='url(#aex-soft-glow)'] {
+  filter: none !important;
+}
+
+#section-chapter-anomaly [aria-hidden='true'] * {
+  animation-play-state: paused !important;
+}
+
+/* -------------------------------------------------------------------------
+   11. Capitulo Estabilidad (#section-chapter-stability)
+   ------------------------------------------------------------------------- */
+#section-chapter-stability {
+  contain: paint style;
+  isolation: isolate;
+}
+
+[data-perf='high'] #section-chapter-stability [class*='blur-[160px]'] {
+  filter: blur(48px) !important;
+}
+
+[data-perf='balanced'] #section-chapter-stability [class*='blur-[160px]'] {
+  filter: blur(32px) !important;
+}
+
+[data-perf='lite'] #section-chapter-stability [class*='blur-[160px]'] {
+  filter: blur(18px) !important;
+}
+
+[data-perf='balanced'] #section-chapter-stability .backdrop-blur-xl,
+[data-perf='balanced'] #section-chapter-stability [class*='backdrop-blur'] {
+  -webkit-backdrop-filter: blur(8px) saturate(118%) !important;
+  backdrop-filter: blur(8px) saturate(118%) !important;
+}
+
+[data-perf='lite'] #section-chapter-stability .backdrop-blur-xl,
+[data-perf='lite'] #section-chapter-stability [class*='backdrop-blur'] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* -------------------------------------------------------------------------
+   12. Capitulo Sintesis (#section-chapter-complete)
+   ------------------------------------------------------------------------- */
+#section-chapter-complete {
+  contain: paint style;
+  isolation: isolate;
+}
+
+[data-perf='high'] #section-chapter-complete [class*='blur-[180px]'] {
+  filter: blur(52px) !important;
+}
+
+[data-perf='balanced'] #section-chapter-complete [class*='blur-[180px]'] {
+  filter: blur(34px) !important;
+}
+
+[data-perf='lite'] #section-chapter-complete [class*='blur-[180px]'] {
+  filter: blur(20px) !important;
+}
+
+[data-perf='high'] #section-chapter-complete [class*='backdrop-blur-[50px]'] {
+  -webkit-backdrop-filter: blur(14px) saturate(120%) !important;
+  backdrop-filter: blur(14px) saturate(120%) !important;
+}
+
+[data-perf='balanced'] #section-chapter-complete [class*='backdrop-blur-[50px]'],
+[data-perf='balanced'] #section-chapter-complete .backdrop-blur-xl {
+  -webkit-backdrop-filter: blur(8px) saturate(118%) !important;
+  backdrop-filter: blur(8px) saturate(118%) !important;
+}
+
+[data-perf='lite'] #section-chapter-complete [class*='backdrop-blur-[50px]'],
+[data-perf='lite'] #section-chapter-complete .backdrop-blur-xl {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background: rgba(3, 7, 18, 0.55) !important;
+}
+
+/* -------------------------------------------------------------------------
+   13. Transiciones narrativas (sin data-chapter propio antes)
+   ------------------------------------------------------------------------- */
+#transition-panorama-to-priority,
+#transition-to-changes,
+#transition-to-summary,
+[data-chapter='transition'] {
+  contain: paint style;
+}
+
+[data-perf='balanced'] #transition-panorama-to-priority [class*='blur-['],
+[data-perf='balanced'] #transition-to-changes [class*='blur-['],
+[data-perf='balanced'] #transition-to-summary [class*='blur-['],
+[data-perf='balanced'] [data-chapter='transition'] [class*='blur-[140px]'] {
+  filter: blur(32px) !important;
+}
+
+[data-perf='lite'] #transition-panorama-to-priority [class*='blur-['],
+[data-perf='lite'] #transition-to-changes [class*='blur-['],
+[data-perf='lite'] #transition-to-summary [class*='blur-['],
+[data-perf='lite'] [data-chapter='transition'] [class*='blur-[140px]'] {
+  filter: blur(18px) !important;
+}
+
+[data-perf='balanced'] #transition-panorama-to-priority .backdrop-blur-xl,
+[data-perf='balanced'] #transition-to-changes .backdrop-blur-xl,
+[data-perf='balanced'] #transition-to-summary .backdrop-blur-xl,
+[data-perf='balanced'] [data-chapter='transition'] .backdrop-blur-xl {
+  -webkit-backdrop-filter: blur(7px) saturate(118%) !important;
+  backdrop-filter: blur(7px) saturate(118%) !important;
+}
+
+[data-perf='lite'] #transition-panorama-to-priority .backdrop-blur-xl,
+[data-perf='lite'] #transition-to-changes .backdrop-blur-xl,
+[data-perf='lite'] #transition-to-summary .backdrop-blur-xl,
+[data-perf='lite'] [data-chapter='transition'] .backdrop-blur-xl {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+[data-inview='false'] [data-chapter='transition'] *,
+[data-inview='false'] #transition-panorama-to-priority *,
+[data-inview='false'] #transition-to-changes *,
+[data-inview='false'] #transition-to-summary * {
+  animation-play-state: paused !important;
+}
+
+/* -------------------------------------------------------------------------
+   14. Respeto a "reducir movimiento" del sistema
    ------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *,

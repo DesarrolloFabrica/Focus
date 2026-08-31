@@ -22,6 +22,7 @@ export interface ManagedLoopOptions {
   onResume?: (time: number) => void;
   /** Tope de FPS propio; por defecto usa el del nivel detectado. */
   fpsCap?: number;
+  root?: Element | Document | null;
   /** Margen de anticipacion del observer. */
   rootMargin?: string;
   /** Si devuelve false, el bucle se pausa aunque el elemento este visible. */
@@ -86,6 +87,7 @@ export const startManagedLoop = (options: ManagedLoopOptions): (() => void) => {
   document.addEventListener('visibilitychange', onVisibilityChange);
 
   let observer: IntersectionObserver | null = null;
+  const ioRoot = options.root ?? null;
   if (element && typeof IntersectionObserver !== 'undefined') {
     inViewport = false;
     observer = new IntersectionObserver(
@@ -93,7 +95,7 @@ export const startManagedLoop = (options: ManagedLoopOptions): (() => void) => {
         inViewport = entries.some((entry) => entry.isIntersecting);
         sync();
       },
-      { rootMargin, threshold: 0 },
+      { root: ioRoot, rootMargin, threshold: 0 },
     );
     observer.observe(element);
   }

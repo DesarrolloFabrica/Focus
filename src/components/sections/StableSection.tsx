@@ -1,135 +1,454 @@
-import React from 'react';
-import { motion, useReducedMotion } from 'motion/react';
-import { CheckCircle2, ShieldCheck, Image as ImageIcon, ChevronDown } from 'lucide-react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform, type MotionValue } from 'motion/react';
+import { CheckCircle2, ShieldCheck, Activity, Check, CheckCheck, Radio } from 'lucide-react';
 import { FocusEntity } from '../../types/focus';
+import { useBriefingSectionMetrics } from '../../perf';
+import { useIntroScrollRoot } from './ArrivalSection';
 
 interface StableSectionProps {
   entities: FocusEntity[];
   onContinue?: () => void;
 }
 
-export const StableSection: React.FC<StableSectionProps> = ({ entities }) => {
-  const reduce = !!useReducedMotion();
+const ROTATION_PATTERNS = [-2.2, 1.8, -1.2, 2.4, -1.6, 1.4, -2.0, 1.0, -1.5, 2.0, -0.8, 1.6];
+const STACK_X_OFFSETS = [-14, 12, -8, 16, -10, 8, -12, 10, -6, 14, -10, 12];
+const STACK_Y_OFFSETS = [8, 4, 10, 5, 12, 2, 8, 14, 1, 10, 6, 4];
+
+interface CardPhysics {
+  stackDeltaX: number;
+  stackDeltaY: number;
+  stackRotate: number;
+  stackScale: number;
+  stackOpacity: number;
+  wave: 1 | 2 | 3;
+}
+
+const getEntityStateIcon = (state: string) => {
+  const normalized = state.toLowerCase();
+  if (normalized.includes('verific') || normalized.includes('control')) return ShieldCheck;
+  if (normalized.includes('activ') || normalized.includes('seguim')) return Activity;
+  if (normalized.includes('rango') || normalized.includes('balance')) return Radio;
+  return CheckCircle2;
+};
+
+const getEntityStateColor = (state: string) => {
+  const normalized = state.toLowerCase();
+  if (normalized.includes('verific') || normalized.includes('dentro')) {
+    return {
+      bg: 'bg-emerald-500/15',
+      border: 'border-emerald-400/30',
+      text: 'text-emerald-300',
+      icon: 'text-emerald-400',
+    };
+  }
+  if (normalized.includes('activ') || normalized.includes('cambios')) {
+    return {
+      bg: 'bg-cyan-500/15',
+      border: 'border-cyan-400/30',
+      text: 'text-cyan-300',
+      icon: 'text-cyan-400',
+    };
+  }
+  return {
+    bg: 'bg-teal-500/15',
+    border: 'border-teal-400/30',
+    text: 'text-teal-300',
+    icon: 'text-teal-400',
+  };
+};
+
+export const StableSection: React.FC<StableSectionProps> = ({ entities, onContinue }) => {
+  const reduceMotion = !!useReducedMotion();
+  const scrollRootRef = useIntroScrollRoot();
+  const sectionRef = useRef<HTMLElement | null>(null);
+
+  const rawProgress = useMotionValue(0);
+  const animatedStoryProgress = useSpring(rawProgress, {
+    stiffness: 240,
+    damping: 28,
+    mass: 0.5,
+    restDelta: 0.0005,
+    restSpeed: 0.002,
+  });
+  const storyProgress = reduceMotion ? rawProgress : animatedStoryProgress;
+
+  useBriefingSectionMetrics(
+    sectionRef,
+    'stability',
+    scrollRootRef?.current ?? null,
+    useCallback(
+      (metrics) => {
+        rawProgress.set(metrics.progress);
+      },
+      [rawProgress],
+    ),
+  );
+
+  const totalCount = entities.length;
+  const numCols = totalCount >= 9 ? 5 : totalCount >= 7 ? 4 : 3;
+
+  const cardPhysicsList: CardPhysics[] = useMemo(() => {
+    const w1Count = Math.ceil(totalCount / 3);
+    const w2Count = Math.ceil((totalCount - w1Count) / 2);
+    const numRows = Math.ceil(totalCount / numCols);
+    const centerCol = (numCols - 1) / 2;
+    const centerRow = (numRows - 1) / 2;
+
+    return entities.map((_, index) => {
+      const col = index % numCols;
+      const row = Math.floor(index / numCols);
+      const rot = ROTATION_PATTERNS[index % ROTATION_PATTERNS.length];
+      const offsetX = STACK_X_OFFSETS[index % STACK_X_OFFSETS.length];
+      const offsetY = STACK_Y_OFFSETS[index % STACK_Y_OFFSETS.length];
+
+      // Lateral delta to bring card from its grid slot to center stack
+      const deltaX = (centerCol - col) * (numCols === 5 ? 245 : 320) + offsetX;
+
+      // Vertical delta to bring card from its grid row to center stack
+      const deltaY = (centerRow - row) * 115 + offsetY;
+
+      let wave: 1 | 2 | 3 = 1;
+      if (index >= w1Count + w2Count) {
+        wave = 3;
+      } else if (index >= w1Count) {
+        wave = 2;
+      }
+
+      const depthFactor = (totalCount - index) / Math.max(1, totalCount);
+
+      return {
+        stackDeltaX: deltaX,
+        stackDeltaY: deltaY,
+        stackRotate: rot,
+        stackScale: 0.94 + 0.04 * depthFactor,
+        stackOpacity: 0.72 + 0.26 * depthFactor,
+        wave,
+      };
+    });
+  }, [totalCount, entities, numCols]);
+
+  // Microtransition from Anomaly (0.00 - 0.12)
+  const microLine1Opacity = useTransform(storyProgress, [0, 0.02, 0.07, 0.11], [1, 1, 0.8, 0]);
+  const microLine1Y = useTransform(storyProgress, [0, 0.03, 0.11], [0, 0, -16]);
+  const microLine2Opacity = useTransform(storyProgress, [0.01, 0.04, 0.08, 0.12], [0, 1, 1, 0]);
+  const microLine2Y = useTransform(storyProgress, [0.01, 0.05, 0.12], [14, 0, -16]);
+
+  // Cobertura Header (0.08 - 0.92)
+  const headerOpacity = useTransform(storyProgress, [0.08, 0.15, 0.86, 0.92], [0, 1, 1, 0.12]);
+  const headerY = useTransform(storyProgress, [0.08, 0.16, 0.86, 0.92], [22, 0, 0, -15]);
+
+  // Ambient Halo behind stack
+  const haloScale = useTransform(storyProgress, [0.05, 0.35, 0.75], [0.8, 1.25, 1.45]);
+  const haloOpacity = useTransform(storyProgress, [0.05, 0.25, 0.75, 0.9], [0.15, 0.35, 0.38, 0.18]);
+
+  // Sweep light beam across grid (0.74 - 0.84)
+  const sweepX = useTransform(storyProgress, [0.74, 0.82], ['-10%', '115%']);
+  const sweepOpacity = useTransform(storyProgress, [0.74, 0.76, 0.8, 0.82], [0, 0.65, 0.65, 0]);
+
+  // Grid global container scale & dimming for conclusion (0.84 - 1.0)
+  const gridContainerScale = useTransform(storyProgress, [0.84, 0.89], [1, 0.985]);
+  const gridContainerOpacity = useTransform(
+    storyProgress,
+    [0.84, 0.89, 0.94, 1],
+    [1, 0.68, 0.28, 0.08],
+  );
+
+  // Editorial Conclusion (0.84 - 0.96)
+  const conclusionOpacity = useTransform(storyProgress, [0.84, 0.88, 0.93, 0.98], [0, 1, 1, 0]);
+  const conclusionY = useTransform(storyProgress, [0.84, 0.88, 0.98], [28, 0, -18]);
+  const conclusionScale = useTransform(storyProgress, [0.84, 0.89], [0.95, 1]);
+
+  // Ambient lingering signals for transition (0.94 - 1.0)
+  const exitGlowOpacity = useTransform(storyProgress, [0.92, 0.97, 1], [0, 0.6, 0.9]);
 
   return (
-    <section id="section-chapter-stability" className="relative min-h-screen py-28 overflow-hidden flex flex-col justify-center" data-chapter="stability">
-      {/* Calm, structured background */}
-      <div className="absolute inset-0 pointer-events-none">
-        <motion.div 
-          animate={reduce ? false : { opacity: [0.06, 0.14, 0.06] }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-0 left-0 w-[800px] h-[600px] bg-cyan-600/15 rounded-full blur-[160px]"
-        />
-        <motion.div 
-          animate={reduce ? false : { opacity: [0.04, 0.12, 0.04] }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-[160px]"
-        />
-      </div>
-
-      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full">
-        <motion.header
-          className="mb-20 text-center max-w-3xl mx-auto"
-          initial={reduce ? false : { opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.5 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-        >
-          <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-8">
-            <span className="text-emerald-400 font-mono text-sm tracking-wider">05 / 07</span>
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <strong className="text-white text-sm tracking-widest uppercase font-medium">Cobertura</strong>
-          </div>
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 tracking-tight text-white">
-            Lo que puedes dejar tranquilo.
-          </h2>
-          <p className="text-lg md:text-xl text-slate-400 font-light max-w-2xl mx-auto">
-            FOCUS también revisó el resto del panorama. Todo esto está bajo control.
-          </p>
-        </motion.header>
-
-        {/* Masonry-like Grid for Stable Entities */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
-          {entities.map((entity, index) => (
-            <motion.article
-              key={entity.id}
-              className="group relative rounded-[2rem] bg-white/[0.02] border border-white/5 backdrop-blur-md p-6 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-300 overflow-hidden flex flex-col"
-              initial={reduce ? false : { opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.5, delay: index * 0.05 }}
-            >
-              {/* Subtle hover glow */}
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-cyan-500/0 group-hover:from-emerald-500/5 group-hover:to-cyan-500/5 transition-all duration-500 pointer-events-none" />
-              
-              <div className="flex items-start gap-4 mb-4 relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                </div>
-                <div>
-                  <strong className="text-lg text-white font-medium block">{entity.label}</strong>
-                  <span className="text-emerald-400 text-sm font-medium">{entity.state}</span>
-                </div>
-              </div>
-
-              {entity.description && (
-                <p className="text-slate-400 text-sm leading-relaxed mb-4 relative z-10 flex-grow">{entity.description}</p>
-              )}
-
-              {entity.metric && (
-                <div className="mt-auto pt-4 border-t border-white/5 relative z-10 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 uppercase tracking-wider font-mono">Métrica</span>
-                  <span className="text-white font-mono">{entity.metric}</span>
-                </div>
-              )}
-
-              {/* Placeholder Logo/Icon for Entity */}
-              <div className="absolute right-4 top-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <ImageIcon className="w-16 h-16" />
-              </div>
-            </motion.article>
-          ))}
+    <section
+      ref={sectionRef}
+      id="section-chapter-stability"
+      className="cov-section select-none"
+      data-chapter="stability"
+      aria-label="05 / 07 · Cobertura: elementos observados bajo control"
+    >
+      <div className="cov-sticky">
+        {/* Navy + Cyan + Emerald Serene Ambient */}
+        <div className="cov-ambient" aria-hidden="true">
+          <div className="cov-ambient__base" />
+          <motion.div
+            className="cov-ambient__halo"
+            style={{ scale: reduceMotion ? 1 : haloScale, opacity: haloOpacity }}
+          />
+          <div className="cov-ambient__breath" />
         </div>
 
+        {/* 1. Microtransition from Anomaly */}
         <motion.div
-          className="relative max-w-4xl mx-auto rounded-[2rem] p-[1px] overflow-hidden mb-14"
-          initial={reduce ? false : { opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true, amount: 0.5 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
+          className="cov-micro-transition"
+          style={{
+            display: useTransform(storyProgress, (p: number) => (p > 0.15 ? 'none' : 'block')),
+          }}
+          aria-hidden="true"
         >
-          {/* Animated gradient border */}
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-500 opacity-30 blur-[2px]" />
-          
-          <div className="relative bg-[#030712]/90 backdrop-blur-xl rounded-[2rem] p-8 md:p-12 text-center">
-            <div className="max-w-2xl mx-auto">
-              <div className="inline-flex w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 items-center justify-center mb-4">
-                <ShieldCheck className="w-6 h-6 text-emerald-400" />
-              </div>
-              <small className="text-emerald-400 font-mono tracking-widest uppercase mb-2 block">{entities.length} elementos revisados</small>
-              <strong className="text-2xl text-white font-medium block">FOCUS también decide qué no mostrarte.</strong>
-              <p className="text-slate-400 mt-2">Ninguno de estos puntos requiere tu intervención hoy.</p>
+          <motion.p
+            className="cov-micro-transition__line1"
+            style={{ opacity: microLine1Opacity, y: microLine1Y }}
+          >
+            Lo excepcional ya está claro.
+          </motion.p>
+          <motion.h3
+            className="cov-micro-transition__line2"
+            style={{ opacity: microLine2Opacity, y: microLine2Y }}
+          >
+            Ahora veamos todo lo que funciona como debería.
+          </motion.h3>
+        </motion.div>
+
+        {/* 2. Cobertura Editorial Header */}
+        <motion.header
+          className="cov-header"
+          style={{ opacity: reduceMotion ? 1 : headerOpacity, y: reduceMotion ? 0 : headerY }}
+        >
+          <div className="cov-badge">
+            <span className="cov-badge__num">05 / 07</span>
+            <div className="cov-badge__dot" />
+            <strong className="cov-badge__title">Cobertura</strong>
+          </div>
+
+          <h2 className="cov-headline">Lo que puedes dejar tranquilo.</h2>
+          <p className="cov-subheadline">FOCUS también revisó el resto del panorama.</p>
+          <span className="cov-microtext">
+            {totalCount} elementos fueron verificados. Ninguno necesita tu atención.
+          </span>
+        </motion.header>
+
+        {/* 3. Interactive Unfold Stage & 3-Wave Grid */}
+        <div className="cov-stage">
+          <motion.div
+            className="cov-grid-wrapper"
+            style={{
+              scale: reduceMotion ? 1 : gridContainerScale,
+              opacity: reduceMotion ? 1 : gridContainerOpacity,
+            }}
+          >
+            {/* Sweep light validation beam */}
+            {!reduceMotion && (
+              <motion.div
+                className="cov-sweep"
+                style={{
+                  left: sweepX,
+                  opacity: sweepOpacity,
+                }}
+                aria-hidden="true"
+              />
+            )}
+
+            <div
+              className={`cov-grid ${
+                numCols === 5 ? 'cov-grid--5-cols' : numCols === 4 ? 'cov-grid--4-cols' : 'cov-grid--3-cols'
+              }`}
+              role="list"
+              aria-label="Elementos bajo observación estable"
+            >
+              {entities.map((entity, index) => {
+                const physics = cardPhysicsList[index] ?? {
+                  stackDeltaX: 0,
+                  stackDeltaY: 0,
+                  stackRotate: 0,
+                  stackScale: 1,
+                  stackOpacity: 1,
+                  wave: 1,
+                };
+                return (
+                  <UnfoldCard
+                    key={entity.id}
+                    entity={entity}
+                    index={index}
+                    physics={physics}
+                    storyProgress={storyProgress}
+                    reduceMotion={reduceMotion}
+                  />
+                );
+              })}
             </div>
+          </motion.div>
+        </div>
+
+        {/* 4. Editorial Conclusion: 'FOCUS también decide qué no mostrarte' */}
+        <motion.div
+          className="cov-conclusion"
+          style={{
+            opacity: reduceMotion ? 1 : conclusionOpacity,
+            y: reduceMotion ? 0 : conclusionY,
+            scale: reduceMotion ? 1 : conclusionScale,
+            pointerEvents: useTransform(storyProgress, (p: number) =>
+              p >= 0.84 && p <= 0.94 ? 'auto' : 'none',
+            ),
+          }}
+          aria-label="Conclusión editorial de cobertura"
+        >
+          <div className="cov-conclusion__badge">
+            <CheckCheck className="w-3.5 h-3.5" />
+            <span>{totalCount} ELEMENTOS REVISADOS</span>
+          </div>
+          <h3 className="cov-conclusion__headline">FOCUS también decide qué no mostrarte.</h3>
+          <p className="cov-conclusion__sub">
+            Ninguno de estos puntos requiere tu intervención hoy.
+          </p>
+          <div className="cov-conclusion__chips">
+            <span className="cov-conclusion__chip">COVERAGE / 100%</span>
+            <span className="cov-conclusion__chip">
+              {totalCount} / {totalCount} VERIFIED
+            </span>
+            <span className="cov-conclusion__chip">NO ACTION REQUIRED</span>
           </div>
         </motion.div>
 
-        {/* Continuous Scroll Guide */}
-        <motion.div 
-          className="flex flex-col items-center justify-center text-slate-500 text-xs font-mono tracking-widest uppercase gap-2"
-          initial={reduce ? false : { opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, delay: 0.3 }}
+        {/* 5. Serene Ambient Exit with Micro-signals */}
+        <motion.div
+          className="absolute inset-0 pointer-events-none flex items-center justify-center"
+          style={{ opacity: reduceMotion ? 0 : exitGlowOpacity }}
+          aria-hidden="true"
         >
-          <span>Desliza para ver la síntesis</span>
-          <motion.div 
-            animate={reduce ? false : { y: [0, 5, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          >
-            <ChevronDown className="w-4 h-4 text-emerald-400/70" />
-          </motion.div>
+          <div className="w-[540px] h-[360px] rounded-full bg-emerald-500/10 blur-[100px]" />
+          <div className="w-[420px] h-[300px] rounded-full bg-cyan-500/10 blur-[90px]" />
         </motion.div>
       </div>
     </section>
   );
 };
+
+interface UnfoldCardProps {
+  entity: FocusEntity;
+  index: number;
+  physics: CardPhysics;
+  storyProgress: MotionValue<number>;
+  reduceMotion: boolean;
+}
+
+const UnfoldCard: React.FC<UnfoldCardProps> = React.memo(
+  ({ entity, index, physics, storyProgress, reduceMotion }) => {
+    const [isHovered, setIsHovered] = useState(false);
+    const StateIcon = getEntityStateIcon(entity.state);
+    const stateStyle = getEntityStateColor(entity.state);
+
+    // Wave Intervals mapping
+    let waveStart = 0.22;
+    let waveEnd = 0.38;
+
+    if (physics.wave === 2) {
+      waveStart = 0.42;
+      waveEnd = 0.58;
+    } else if (physics.wave === 3) {
+      waveStart = 0.62;
+      waveEnd = 0.76;
+    }
+
+    // Unfold Transforms: stack position -> grid position (0, 0, 0, 1, 1)
+    // Add an organic curved flight trajectory
+    const cardX = useTransform(
+      storyProgress,
+      [0, waveStart, (waveStart + waveEnd) / 2, waveEnd],
+      [physics.stackDeltaX, physics.stackDeltaX, physics.stackDeltaX * 0.35, 0],
+    );
+
+    const cardY = useTransform(
+      storyProgress,
+      [0, waveStart, (waveStart + waveEnd) / 2, waveEnd],
+      [physics.stackDeltaY, physics.stackDeltaY, physics.stackDeltaY * 0.5 - 14, 0],
+    );
+
+    const cardRotate = useTransform(
+      storyProgress,
+      [0, waveStart, waveEnd],
+      [physics.stackRotate, physics.stackRotate, 0],
+    );
+
+    const cardScale = useTransform(
+      storyProgress,
+      [0, waveStart, waveEnd],
+      [physics.stackScale, physics.stackScale, 1],
+    );
+
+    const cardOpacity = useTransform(
+      storyProgress,
+      [0, waveStart, waveEnd],
+      [physics.stackOpacity, physics.stackOpacity, 1],
+    );
+
+    // Dynamic verification state indicator
+    const isVerifiedValue = useTransform(storyProgress, (p: number) => p >= waveEnd - 0.03);
+    const [isVerified, setIsVerified] = useState(false);
+
+    React.useEffect(() => {
+      return isVerifiedValue.on('change', (val) => setIsVerified(val));
+    }, [isVerifiedValue]);
+
+    // Check icon stagger ripple at conclusion beat (0.76 - 0.82)
+    const staggerOffset = index * 0.002;
+    const checkGlow = useTransform(
+      storyProgress,
+      [0.75 + staggerOffset, 0.78 + staggerOffset, 0.81 + staggerOffset],
+      [0.85, 1, 0.9],
+    );
+
+    return (
+      <motion.article
+        role="listitem"
+        className="cov-card group"
+        style={{
+          x: reduceMotion ? 0 : cardX,
+          y: reduceMotion ? 0 : cardY,
+          rotate: reduceMotion ? 0 : cardRotate,
+          scale: reduceMotion ? 1 : cardScale,
+          opacity: reduceMotion ? 1 : cardOpacity,
+          zIndex: 30 - index,
+        }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div className="cov-card__specular" />
+
+        <div className="cov-card__header">
+          <div className="cov-card__label-group">
+            <motion.div
+              className="cov-card__icon"
+              style={{ scale: isVerified ? 1 : 0.92, opacity: checkGlow }}
+            >
+              <StateIcon className="w-3.5 h-3.5" />
+            </motion.div>
+            <strong className="cov-card__title" title={entity.label}>
+              {entity.label}
+            </strong>
+          </div>
+
+          <span
+            className={`cov-card__badge ${stateStyle.bg} ${stateStyle.border} ${stateStyle.text}`}
+          >
+            {entity.state}
+          </span>
+        </div>
+
+        {entity.description && (
+          <p className="cov-card__desc">{entity.description}</p>
+        )}
+
+        <div className="cov-card__footer">
+          {entity.metric ? (
+            <div className="flex items-center gap-1.5">
+              <span className="cov-card__metric-label">Métrica</span>
+              <span className="cov-card__metric-value">{entity.metric}</span>
+            </div>
+          ) : (
+            <span className="cov-card__metric-label">En supervisión</span>
+          )}
+
+          <div className="cov-card__verified-tag">
+            <Check className="w-3 h-3" />
+            <span>VERIFICADO</span>
+          </div>
+        </div>
+      </motion.article>
+    );
+  },
+);
+
+UnfoldCard.displayName = 'UnfoldCard';

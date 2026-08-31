@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
+import React, { useCallback, useMemo, useRef } from 'react';
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react';
 import { Activity, Crosshair, Radar } from 'lucide-react';
 import { FocusAnomaly } from '../../types/focus';
-import { isSubtreeInView, observeInView, usePerfConfig } from '../../perf';
+import { useBriefingSectionMetrics } from '../../perf';
 import { useIntroScrollRoot } from './ArrivalSection';
 
 interface AnomalySectionProps {
@@ -50,25 +50,21 @@ const pointAtProgress = (points: PlotPoint[], progress: number): PlotPoint => {
   };
 };
 
-/**
- * Reparte el scroll fisico en actos mas largos: apertura, exploracion y cierre
- * no consumen el mismo porcentaje de recorrido.
- */
-function toNarrativeProgress(raw: number): number {
-  const t = Math.max(0, Math.min(1, raw));
-  if (t <= 0.18) return (t / 0.18) * 0.24;
-  if (t <= 0.8) return 0.24 + ((t - 0.18) / 0.62) * 0.58;
-  return 0.82 + ((t - 0.8) / 0.2) * 0.18;
-}
-
 export const AnomalySection: React.FC<AnomalySectionProps> = ({ anomaly }) => {
   const reduceMotion = !!useReducedMotion();
-  const perf = usePerfConfig();
-  const scrollBlur = perf.tier === 'high' && !reduceMotion;
   const scrollRootRef = useIntroScrollRoot();
   const sectionRef = useRef<HTMLElement | null>(null);
   const hasAnomaly = anomaly.isUnusual;
-  const rawStoryProgress = useMotionValue(0);
+
+  const rawProgress = useMotionValue(0);
+  const animatedStoryProgress = useSpring(rawProgress, {
+    stiffness: 240,
+    damping: 28,
+    mass: 0.5,
+    restDelta: 0.0005,
+    restSpeed: 0.002,
+  });
+  const storyProgress = reduceMotion ? rawProgress : animatedStoryProgress;
 
   const geometry = useMemo(() => {
     const allValues = [...anomaly.expectedPath, ...anomaly.actualPath];
@@ -96,56 +92,17 @@ export const AnomalySection: React.FC<AnomalySectionProps> = ({ anomaly }) => {
     };
   }, [anomaly.actualPath, anomaly.expectedPath]);
 
-  useEffect(() => {
-    const section = sectionRef.current;
-    const root = scrollRootRef?.current ?? (document.getElementById('iv-intro-scroll') as HTMLElement | null);
-    if (!section) return undefined;
-
-    let frameId = 0;
-    let isNearViewport = true;
-    let pendingFinalPass = false;
-
-    const updateProgress = () => {
-      cancelAnimationFrame(frameId);
-      frameId = window.requestAnimationFrame(() => {
-        if (!isSubtreeInView(section) && !pendingFinalPass) return;
-        if (!isNearViewport && !pendingFinalPass) return;
-        pendingFinalPass = false;
-
-        const sectionRect = section.getBoundingClientRect();
-        const rootTop = root ? root.getBoundingClientRect().top : 0;
-        const rootHeight = root?.clientHeight ?? window.innerHeight;
-        const totalDistance = Math.max(1, sectionRect.height - rootHeight);
-        const offset = rootTop - sectionRect.top;
-        const progress = Math.max(0, Math.min(1, offset / totalDistance));
-        rawStoryProgress.set(progress);
-      });
-    };
-
-    const target = root ?? window;
-    target.addEventListener('scroll', updateProgress, { passive: true });
-    window.addEventListener('resize', updateProgress);
-
-    const stopObserving = observeInView(
-      section,
-      (inView) => {
-        isNearViewport = inView;
-        if (!inView) pendingFinalPass = true;
-        updateProgress();
+  useBriefingSectionMetrics(
+    sectionRef,
+    'anomaly',
+    scrollRootRef?.current ?? null,
+    useCallback(
+      (metrics) => {
+        rawProgress.set(metrics.progress);
       },
-      '200px',
-      root,
-    );
-
-    updateProgress();
-
-    return () => {
-      stopObserving();
-      target.removeEventListener('scroll', updateProgress);
-      window.removeEventListener('resize', updateProgress);
-      cancelAnimationFrame(frameId);
-    };
-  }, [scrollRootRef, rawStoryProgress]);
+      [rawProgress],
+    ),
+  );
 
   const explorer = {
     baselineLabel: anomaly.baselineLabel ?? 'Patrón habitual',
@@ -158,118 +115,65 @@ export const AnomalySection: React.FC<AnomalySectionProps> = ({ anomaly }) => {
     impactText: anomaly.impactText ?? anomaly.context,
   };
 
-  const storyProgress = useTransform(rawStoryProgress, (raw) => {
-    const value = toNarrativeProgress(raw);
-    if (!reduceMotion) return value;
-    if (value < 0.14) return 0.06;
-    if (value < 0.38) return 0.24;
-    if (value < 0.68) return 0.52;
-    if (value < 0.88) return 0.76;
-    return 0.96;
-  });
-
-  // El salto directo desde Cambios aterriza exactamente en progreso 0. La
-  // portada debe estar lista en ese primer frame; si badge y frase empiezan
-  // tambien en 0 de opacidad, el usuario recibe una pantalla completamente
-  // negra hasta volver a desplazar.
-  const openingBadgeOpacity = useTransform(storyProgress, [0, 0.16, 0.22], [1, 1, 0]);
-  const openingFirstOpacity = useTransform(storyProgress, [0, 0.09, 0.14], [1, 1, 0]);
-  const openingFirstY = useTransform(storyProgress, [0, 0.09, 0.14], [0, 0, -18]);
-  const openingFirstBlur = useTransform(
-    storyProgress,
-    [0, 0.09, 0.14],
-    scrollBlur ? ['blur(0px)', 'blur(0px)', 'blur(5px)'] : ['blur(0px)', 'blur(0px)', 'blur(0px)'],
-  );
-  const openingExplainOpacity = useTransform(storyProgress, [0.07, 0.11, 0.18, 0.24], [0, 1, 1, 0]);
-  const openingExplainY = useTransform(storyProgress, [0.07, 0.12, 0.24], [25, 0, -18]);
-  const openingExplainBlur = useTransform(
-    storyProgress,
-    [0.07, 0.12, 0.24],
-    scrollBlur ? ['blur(6px)', 'blur(0px)', 'blur(5px)'] : ['blur(0px)', 'blur(0px)', 'blur(0px)'],
-  );
-  const openingHeadlineOpacity = useTransform(storyProgress, [0.15, 0.19, 0.26, 0.32], [0, 1, 1, 0]);
-  const openingHeadlineY = useTransform(storyProgress, [0.15, 0.21, 0.32], [25, 0, -18]);
-  const openingHeadlineBlur = useTransform(
-    storyProgress,
-    [0.15, 0.21, 0.32],
-    scrollBlur ? ['blur(6px)', 'blur(0px)', 'blur(5px)'] : ['blur(0px)', 'blur(0px)', 'blur(0px)'],
-  );
-  const openingLayerOpacity = useTransform(storyProgress, [0, 0.1, 0.28], [1, 1, 0]);
-
-  const stageOpacity = useTransform(storyProgress, [0.18, 0.26, 0.8, 0.88], [0, 1, 1, 0]);
-  const stageScale = useTransform(storyProgress, [0.18, 0.27, 0.81, 0.89], [0.965, 1, 1, 0.88]);
-  const visualOpacity = useTransform(storyProgress, [0.2, 0.27, 0.82, 0.9], [0, 1, 1, 0]);
-
-  const expectedDraw = useTransform(storyProgress, [0.18, 0.4], [0, 1]);
-  const expectedOpacity = useTransform(storyProgress, [0.18, 0.24, 0.38, 0.46, 0.84], [0, 1, 1, 0.28, 0.18]);
-  const actualDraw = useTransform(storyProgress, [0.36, 0.72], [0, 1]);
-  const actualOpacity = useTransform(storyProgress, [0.35, 0.42, 0.85, 0.9], [0, 1, 1, 0]);
-
-  const expectedTravel = useTransform(storyProgress, [0.18, 0.42], [0, 1]);
-  const actualTravel = useTransform(storyProgress, [0.36, 0.74], [0, 1]);
+  const openingBadgeOpacity = useTransform(storyProgress, [0, 0.20, 0.26], [1, 1, 0]);
+  const openingFirstOpacity = useTransform(storyProgress, [0, 0.06, 0.09], [1, 1, 0]);
+  const openingFirstY = useTransform(storyProgress, [0, 0.06, 0.09], [0, 0, -16]);
+  const openingExplainOpacity = useTransform(storyProgress, [0.08, 0.11, 0.16, 0.19], [0, 1, 1, 0]);
+  const openingExplainY = useTransform(storyProgress, [0.08, 0.11, 0.19], [20, 0, -16]);
+  const openingHeadlineOpacity = useTransform(storyProgress, [0.18, 0.21, 0.26, 0.29], [0, 1, 1, 0]);
+  const openingHeadlineY = useTransform(storyProgress, [0.18, 0.21, 0.29], [20, 0, -16]);
+  const openingLayerOpacity = useTransform(storyProgress, [0, 0.27, 0.30], [1, 1, 0]);
+  const stageOpacity = useTransform(storyProgress, [0.27, 0.31, 0.80, 0.84], [0, 1, 1, 0]);
+  const stageScale = useTransform(storyProgress, [0.27, 0.32, 0.80, 0.84], [0.97, 1, 1, 0.95]);
+  const visualOpacity = useTransform(storyProgress, [0.28, 0.32, 0.80, 0.84], [0, 1, 1, 0]);
+  const expectedDraw = useTransform(storyProgress, [0.29, 0.40], [0, 1]);
+  const expectedOpacity = useTransform(storyProgress, [0.29, 0.33, 0.44, 0.50, 0.82], [0, 1, 1, 0.35, 0.2]);
+  const expectedTravel = useTransform(storyProgress, [0.29, 0.40], [0, 1]);
   const expectedTrackerX = useTransform(expectedTravel, (value) => pointAtProgress(geometry.expectedPoints, value).x);
   const expectedTrackerY = useTransform(expectedTravel, (value) => pointAtProgress(geometry.expectedPoints, value).y);
+  const expectedTrackerOpacity = useTransform(storyProgress, [0.29, 0.33, 0.43, 0.47], [0, 1, 1, 0]);
+  const phaseOneOpacity = useTransform(storyProgress, [0.29, 0.33, 0.43, 0.47], [0, 1, 1, 0]);
+  const phaseOneY = useTransform(storyProgress, [0.29, 0.33, 0.47], [20, 0, -16]);
+  const actualDraw = useTransform(storyProgress, [0.46, 0.58], [0, 1]);
+  const actualOpacity = useTransform(storyProgress, [0.46, 0.50, 0.82, 0.86], [0, 1, 1, 0]);
+  const actualTravel = useTransform(storyProgress, [0.46, 0.58], [0, 1]);
   const actualTrackerX = useTransform(actualTravel, (value) => pointAtProgress(geometry.actualPoints, value).x);
   const actualTrackerY = useTransform(actualTravel, (value) => pointAtProgress(geometry.actualPoints, value).y);
-  const expectedTrackerOpacity = useTransform(storyProgress, [0.17, 0.22, 0.4, 0.46], [0, 1, 1, 0]);
-  const actualTrackerOpacity = useTransform(storyProgress, [0.36, 0.42, 0.72, 0.78], [0, 1, 1, 0]);
-
-  const breakOpacity = useTransform(storyProgress, [0.4, 0.46, 0.84, 0.9], [0, 1, 1, 0]);
-  const breakScale = useTransform(storyProgress, [0.39, 0.46, 0.7, 0.84], [0.5, 1, 1, 1.45]);
-  const comparisonOpacity = useTransform(storyProgress, [0.66, 0.72, 0.84, 0.9], [0, 1, 1, 0]);
-
-  const phaseOneOpacity = useTransform(storyProgress, [0.18, 0.24, 0.4, 0.48], [0, 1, 1, 0]);
-  const phaseOneY = useTransform(storyProgress, [0.18, 0.24, 0.48], [20, 0, -18]);
-  const phaseOneBlur = useTransform(
-    storyProgress,
-    [0.18, 0.24, 0.48],
-    scrollBlur ? ['blur(5px)', 'blur(0px)', 'blur(5px)'] : ['blur(0px)', 'blur(0px)', 'blur(0px)'],
-  );
-  const phaseTwoOpacity = useTransform(storyProgress, [0.36, 0.44, 0.66, 0.74], [0, 1, 1, 0]);
-  const phaseTwoY = useTransform(storyProgress, [0.36, 0.44, 0.74], [20, 0, -18]);
-  const phaseTwoBlur = useTransform(
-    storyProgress,
-    [0.36, 0.44, 0.74],
-    scrollBlur ? ['blur(5px)', 'blur(0px)', 'blur(5px)'] : ['blur(0px)', 'blur(0px)', 'blur(0px)'],
-  );
-  const phaseThreeOpacity = useTransform(storyProgress, [0.64, 0.72, 0.82, 0.88], [0, 1, 1, 0]);
-  const phaseThreeY = useTransform(storyProgress, [0.64, 0.72, 0.88], [20, 0, -18]);
-  const phaseThreeBlur = useTransform(
-    storyProgress,
-    [0.64, 0.72, 0.88],
-    scrollBlur ? ['blur(5px)', 'blur(0px)', 'blur(5px)'] : ['blur(0px)', 'blur(0px)', 'blur(0px)'],
-  );
-
-  const chipOneOpacity = useTransform(storyProgress, [0.7, 0.75], [0, 1]);
-  const chipTwoOpacity = useTransform(storyProgress, [0.72, 0.77], [0, 1]);
-  const chipThreeOpacity = useTransform(storyProgress, [0.74, 0.79], [0, 1]);
-  const chipOneY = useTransform(storyProgress, [0.7, 0.75], [20, 0]);
-  const chipTwoY = useTransform(storyProgress, [0.72, 0.77], [20, 0]);
-  const chipThreeY = useTransform(storyProgress, [0.74, 0.79], [20, 0]);
-
-  const progressScale = useTransform(storyProgress, [0.18, 0.82], [0, 1]);
-  const progressOpacity = useTransform(storyProgress, [0.19, 0.25, 0.84, 0.92], [0, 1, 1, 0]);
-  const nodeOneOpacity = useTransform(storyProgress, [0.16, 0.2, 0.4, 0.48, 0.78, 0.82, 0.88, 0.94], [0.28, 1, 1, 0.3, 0.3, 1, 1, 0.22]);
-  const nodeTwoOpacity = useTransform(storyProgress, [0.35, 0.44, 0.66, 0.74, 0.78, 0.82, 0.88, 0.94], [0.28, 1, 1, 0.3, 0.3, 1, 1, 0.22]);
-  const nodeThreeOpacity = useTransform(storyProgress, [0.64, 0.72, 0.78, 0.82, 0.9, 0.96], [0.28, 1, 1, 1, 1, 0.25]);
-  const nodeOneScale = useTransform(storyProgress, [0.16, 0.22, 0.4, 0.48, 0.8, 0.84, 0.9], [0.9, 1.12, 1.12, 0.9, 0.9, 1.12, 0.9]);
-  const nodeTwoScale = useTransform(storyProgress, [0.36, 0.44, 0.66, 0.75, 0.8, 0.84, 0.9], [0.9, 1.12, 1.12, 0.9, 0.9, 1.12, 0.9]);
-  const nodeThreeScale = useTransform(storyProgress, [0.64, 0.72, 0.8, 0.84, 0.92], [0.9, 1.12, 1.12, 1.12, 0.9]);
-
+  const actualTrackerOpacity = useTransform(storyProgress, [0.46, 0.50, 0.62, 0.66], [0, 1, 1, 0]);
+  const breakOpacity = useTransform(storyProgress, [0.48, 0.52, 0.82, 0.86], [0, 1, 1, 0]);
+  const breakScale = useTransform(storyProgress, [0.48, 0.53, 0.70, 0.82], [0.6, 1, 1, 1.25]);
+  const phaseTwoOpacity = useTransform(storyProgress, [0.46, 0.50, 0.61, 0.65], [0, 1, 1, 0]);
+  const phaseTwoY = useTransform(storyProgress, [0.46, 0.50, 0.65], [20, 0, -16]);
+  const comparisonOpacity = useTransform(storyProgress, [0.64, 0.68, 0.82, 0.86], [0, 1, 1, 0]);
+  const phaseThreeOpacity = useTransform(storyProgress, [0.64, 0.68, 0.80, 0.84], [0, 1, 1, 0]);
+  const phaseThreeY = useTransform(storyProgress, [0.64, 0.68, 0.84], [20, 0, -16]);
+  const chipOneOpacity = useTransform(storyProgress, [0.67, 0.72], [0, 1]);
+  const chipTwoOpacity = useTransform(storyProgress, [0.69, 0.74], [0, 1]);
+  const chipThreeOpacity = useTransform(storyProgress, [0.71, 0.76], [0, 1]);
+  const chipOneY = useTransform(storyProgress, [0.67, 0.72], [16, 0]);
+  const chipTwoY = useTransform(storyProgress, [0.69, 0.74], [16, 0]);
+  const chipThreeY = useTransform(storyProgress, [0.71, 0.76], [16, 0]);
+  const progressScale = useTransform(storyProgress, [0.29, 0.80], [0, 1]);
+  const progressOpacity = useTransform(storyProgress, [0.28, 0.32, 0.82, 0.86], [0, 1, 1, 0]);
+  const nodeOneOpacity = useTransform(storyProgress, [0.28, 0.32, 0.44, 0.48, 0.78, 0.82], [0.35, 1, 1, 0.35, 0.35, 0.9]);
+  const nodeTwoOpacity = useTransform(storyProgress, [0.45, 0.49, 0.62, 0.66, 0.78, 0.82], [0.35, 1, 1, 0.35, 0.35, 0.9]);
+  const nodeThreeOpacity = useTransform(storyProgress, [0.63, 0.67, 0.80, 0.84], [0.35, 1, 1, 0.9]);
+  const nodeOneScale = useTransform(storyProgress, [0.29, 0.33, 0.43, 0.47], [0.95, 1.1, 1.1, 0.95]);
+  const nodeTwoScale = useTransform(storyProgress, [0.46, 0.50, 0.60, 0.64], [0.95, 1.1, 1.1, 0.95]);
+  const nodeThreeScale = useTransform(storyProgress, [0.64, 0.68, 0.80, 0.84], [0.95, 1.1, 1.1, 0.95]);
   const violetAmbientOpacity = useTransform(storyProgress, [0.28, 0.44, 0.72, 0.86], [0.05, 0.48, 0.42, 0.08]);
-  const coralAmbientOpacity = useTransform(storyProgress, [0.4, 0.54, 0.72, 0.86, 0.94], [0, 0.15, 0.48, 0.28, 0]);
-  const calmAmbientOpacity = useTransform(storyProgress, [0.84, 0.94, 1], [0, 0.74, 1]);
-  const scanOneOpacity = useTransform(storyProgress, [0.38, 0.42, 0.46, 0.48], [0, 0.42, 0.2, 0]);
-  const scanOneX = useTransform(storyProgress, [0.38, 0.48], ['-25%', '125%']);
-  const scanTwoOpacity = useTransform(storyProgress, [0.66, 0.7, 0.74, 0.76], [0, 0.38, 0.18, 0]);
-  const scanTwoX = useTransform(storyProgress, [0.66, 0.76], ['-25%', '125%']);
-
-  const reflectionOpacity = useTransform(storyProgress, [0.8, 0.86, 0.92, 0.96], [0, 1, 1, 0]);
-  const reflectionY = useTransform(storyProgress, [0.8, 0.87, 0.96], [24, 0, -18]);
-  const handoffOpacity = useTransform(storyProgress, [0.9, 0.96, 1], [0, 1, 1]);
-  const handoffY = useTransform(storyProgress, [0.9, 0.97], [22, 0]);
-  const greenPointOpacity = useTransform(storyProgress, [0.9, 0.97], [0, 1]);
-  const greenPointScale = useTransform(storyProgress, [0.9, 0.98], [0.4, 1]);
+  const coralAmbientOpacity = useTransform(storyProgress, [0.44, 0.56, 0.72, 0.86], [0, 0.35, 0.48, 0.1]);
+  const calmAmbientOpacity = useTransform(storyProgress, [0.82, 0.92, 1.0], [0, 0.6, 1]);
+  const scanOneOpacity = useTransform(storyProgress, [0.46, 0.50, 0.54, 0.58], [0, 0.4, 0.2, 0]);
+  const scanOneX = useTransform(storyProgress, [0.46, 0.58], ['-25%', '125%']);
+  const scanTwoOpacity = useTransform(storyProgress, [0.64, 0.68, 0.74, 0.78], [0, 0.35, 0.18, 0]);
+  const scanTwoX = useTransform(storyProgress, [0.64, 0.78], ['-25%', '125%']);
+  const reflectionOpacity = useTransform(storyProgress, [0.82, 0.85, 0.89, 0.92], [0, 1, 1, 0]);
+  const reflectionY = useTransform(storyProgress, [0.82, 0.85, 0.92], [20, 0, -16]);
+  const handoffOpacity = useTransform(storyProgress, [0.92, 0.95, 1.0], [0, 1, 1]);
+  const handoffY = useTransform(storyProgress, [0.92, 0.95], [20, 0]);
+  const greenPointOpacity = useTransform(storyProgress, [0.92, 0.95], [0, 1]);
+  const greenPointScale = useTransform(storyProgress, [0.92, 0.96], [0.4, 1]);
 
   return (
     <section
@@ -296,13 +200,13 @@ export const AnomalySection: React.FC<AnomalySectionProps> = ({ anomaly }) => {
           </motion.div>
           <motion.p
             className="aex-opening__line aex-opening__line--first"
-            style={{ opacity: openingFirstOpacity, y: openingFirstY, filter: openingFirstBlur }}
+            style={{ opacity: openingFirstOpacity, y: openingFirstY }}
           >
             {hasAnomaly ? 'Hay algo que no encaja.' : 'Todo encaja con lo esperado.'}
           </motion.p>
           <motion.p
             className="aex-opening__line aex-opening__line--explain"
-            style={{ opacity: openingExplainOpacity, y: openingExplainY, filter: openingExplainBlur }}
+            style={{ opacity: openingExplainOpacity, y: openingExplainY }}
           >
             {hasAnomaly ? (
               <>
@@ -318,7 +222,7 @@ export const AnomalySection: React.FC<AnomalySectionProps> = ({ anomaly }) => {
           </motion.p>
           <motion.h2
             className="aex-opening__headline"
-            style={{ opacity: openingHeadlineOpacity, y: openingHeadlineY, filter: openingHeadlineBlur }}
+            style={{ opacity: openingHeadlineOpacity, y: openingHeadlineY }}
           >
             {hasAnomaly ? 'Esto no suele ocurrir.' : anomaly.headline}
           </motion.h2>
@@ -374,6 +278,7 @@ export const AnomalySection: React.FC<AnomalySectionProps> = ({ anomaly }) => {
                   d={geometry.expectedPath}
                   style={{ pathLength: expectedDraw, opacity: expectedOpacity }}
                 />
+
                 <motion.path
                   className="aex-path aex-path--actual"
                   d={geometry.actualPath}
@@ -429,7 +334,7 @@ export const AnomalySection: React.FC<AnomalySectionProps> = ({ anomaly }) => {
 
               <motion.article
                 className="aex-editorial__phase"
-                style={{ opacity: phaseOneOpacity, y: phaseOneY, filter: phaseOneBlur }}
+                style={{ opacity: phaseOneOpacity, y: phaseOneY }}
               >
                 <div className="aex-phase-label"><span>01</span><i /><strong>{explorer.baselineLabel}</strong></div>
                 <p>Normalmente esta señal sigue una trayectoria estable.</p>
@@ -442,7 +347,7 @@ export const AnomalySection: React.FC<AnomalySectionProps> = ({ anomaly }) => {
 
               <motion.article
                 className="aex-editorial__phase"
-                style={{ opacity: phaseTwoOpacity, y: phaseTwoY, filter: phaseTwoBlur }}
+                style={{ opacity: phaseTwoOpacity, y: phaseTwoY }}
               >
                 <div className="aex-phase-label"><span>02</span><i /><strong>{hasAnomaly ? 'RUPTURA' : 'VERIFICACIÓN'}</strong></div>
                 <p>{hasAnomaly ? 'El comportamiento actual dejó de seguir su patrón habitual.' : 'El comportamiento observado continúa alineado con su patrón habitual.'}</p>
@@ -454,7 +359,7 @@ export const AnomalySection: React.FC<AnomalySectionProps> = ({ anomaly }) => {
 
               <motion.article
                 className="aex-editorial__phase aex-editorial__phase--impact"
-                style={{ opacity: phaseThreeOpacity, y: phaseThreeY, filter: phaseThreeBlur }}
+                style={{ opacity: phaseThreeOpacity, y: phaseThreeY }}
               >
                 <div className="aex-phase-label"><span>03</span><i /><strong>POR QUÉ IMPORTA</strong></div>
                 <p>{anomaly.isCritical ? 'Esta desviación ya requiere atención.' : 'No necesariamente es crítico.'}</p>

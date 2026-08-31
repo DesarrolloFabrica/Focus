@@ -47,6 +47,7 @@ export const NarrativeTransition: React.FC<NarrativeTransitionProps> = ({
     <section
       id={id}
       className="relative py-36 md:py-48 flex flex-col items-center justify-center overflow-hidden min-h-[70vh]"
+      data-chapter="transition"
       aria-label={`${firstLine} ${secondLine}`}
     >
       {isWhyBridge && (

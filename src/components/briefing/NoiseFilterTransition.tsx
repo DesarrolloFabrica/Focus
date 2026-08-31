@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
-import { isSubtreeInView, observeInView, usePerfConfig } from '../../perf';
+import React, { useCallback, useRef } from 'react';
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react';
+import { useBriefingSectionMetrics, usePerfConfig } from '../../perf';
 import { useIntroScrollRoot } from '../sections/ArrivalSection';
 
 interface NoiseFilterTransitionProps {
@@ -9,8 +9,8 @@ interface NoiseFilterTransitionProps {
 
 interface NoiseParticle {
   id: number;
-  startX: number; // initial %
-  startY: number; // initial %
+  startX: number;
+  startY: number;
   size: number;
   hue: number;
   baseAlpha: number;
@@ -33,18 +33,7 @@ const NOISE_PARTICLES: NoiseParticle[] = [
   { id: 12, startX: 68, startY: 16, size: 2.4, hue: 218, baseAlpha: 0.56, convergeAngle: 2.1, convergeDist: 10 },
 ];
 
-type NoisePhase = 'phase1' | 'phase2' | 'handoff';
-
-const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
-const EASE_OUT_SOFT: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const PHASE_ONE_HEADLINE = ['NO TODO MERECE', 'TU ATENCIÓN.'];
-
-/** Scroll only picks the active beat — never drives mid-fade opacities. */
-function phaseFromProgress(p: number): NoisePhase {
-  if (p < 0.50) return 'phase1';
-  if (p < 0.88) return 'phase2';
-  return 'handoff';
-}
 
 export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
   id = 'transition-panorama-to-priority',
@@ -54,221 +43,58 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
   const reduceMotion = !!useReducedMotion();
   const perf = usePerfConfig();
   const useFullDetailMotion = !reduceMotion && perf.tier === 'high';
-  const [phase, setPhase] = useState<NoisePhase>('phase1');
-  const [isSectionActive, setIsSectionActive] = useState(false);
-  const [isSectionSettled, setIsSectionSettled] = useState(false);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    const root = scrollRootRef?.current ?? (document.getElementById('iv-intro-scroll') as HTMLElement | null);
-    if (!container) return undefined;
+  const rawProgress = useMotionValue(0);
+  const animatedStoryProgress = useSpring(rawProgress, {
+    stiffness: 240,
+    damping: 28,
+    mass: 0.5,
+    restDelta: 0.0005,
+    restSpeed: 0.002,
+  });
+  const storyProgress = reduceMotion ? rawProgress : animatedStoryProgress;
 
-    let frameId = 0;
-    let lastPhase: NoisePhase | null = null;
-    let lastActive = false;
-    let lastSettled = false;
-    let lastViewportHeight = -1;
-    // Mientras la escena no esta cerca del viewport no hace falta medirla.
-    let isNearViewport = true;
-    let pendingFinalPass = false;
-
-    const handleScroll = () => {
-      cancelAnimationFrame(frameId);
-      frameId = window.requestAnimationFrame(() => {
-        if (!isSubtreeInView(container) && !pendingFinalPass) return;
-        if (!isNearViewport && !pendingFinalPass) return;
-        pendingFinalPass = false;
-
-        const containerRect = container.getBoundingClientRect();
-        const rootTop = root ? root.getBoundingClientRect().top : 0;
-        const rootHeight = root ? root.clientHeight : window.innerHeight;
-        const rootBottom = rootTop + rootHeight;
-        const totalDistance = containerRect.height - rootHeight;
-
-        // Escribir la variable en cada frame invalidaba el estilo de todo el
-        // subarbol; solo se actualiza cuando cambia de verdad.
-        if (rootHeight !== lastViewportHeight) {
-          lastViewportHeight = rootHeight;
-          container.style.setProperty('--iv-transition-viewport-height', `${rootHeight}px`);
-        }
-
-        // The scene is settled only while its sticky viewport is fully framed.
-        // This gives the side shapes a clear enter/exit boundary in both directions.
-        // Los saltos entre capitulos dejan un margen visual de 8px. Con una
-        // tolerancia de 2px la escena quedaba marcada como "no asentada" y
-        // ocultaba todo su contenido, produciendo un fotograma negro.
-        const edgeTolerance = 12;
-        const isSettled =
-          containerRect.top <= rootTop + edgeTolerance &&
-          containerRect.bottom >= rootBottom - edgeTolerance;
-
-        if (isSettled !== lastSettled) {
-          lastSettled = isSettled;
-          setIsSectionSettled(isSettled);
-        }
-
-        // Activate as soon as the transition reaches the scrollport.
-        const isInScrollport =
-          containerRect.bottom > rootTop &&
-          containerRect.top < rootBottom;
-
-        if (isInScrollport !== lastActive) {
-          lastActive = isInScrollport;
-          setIsSectionActive(isInScrollport);
-        }
-
-        if (!isInScrollport) {
-          return;
-        }
-
-        if (totalDistance <= 0) {
-          if (lastPhase !== 'phase1') {
-            lastPhase = 'phase1';
-            setPhase('phase1');
-          }
-          return;
-        }
-
-        const currentOffset = rootTop - containerRect.top;
-        const p = Math.max(0, Math.min(1, currentOffset / totalDistance));
-        const next = phaseFromProgress(p);
-
-        if (next !== lastPhase) {
-          lastPhase = next;
-          setPhase(next);
-        }
-      });
-    };
-
-    const target = root ?? window;
-    target.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleScroll);
-
-    const stopObserving = observeInView(
-      container,
-      (inView) => {
-        isNearViewport = inView;
-        // Al salir de pantalla se permite una ultima pasada para que los
-        // estados queden en reposo; despues deja de medirse.
-        if (!inView) pendingFinalPass = true;
-        handleScroll();
+  useBriefingSectionMetrics(
+    containerRef,
+    'noise-filter',
+    scrollRootRef?.current ?? null,
+    useCallback(
+      (metrics) => {
+        rawProgress.set(metrics.progress);
       },
-      '200px',
-      root,
-    );
-
-    handleScroll();
-
-    return () => {
-      stopObserving();
-      target.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
-      cancelAnimationFrame(frameId);
-    };
-  }, [scrollRootRef]);
-
-  const showPhase1 = isSectionSettled && phase === 'phase1';
-  const showPhase2 = isSectionSettled && (phase === 'phase2' || phase === 'handoff');
-  const isShapesActive = isSectionSettled;
-  const showNoise = isSectionSettled && phase === 'phase1';
-  const showTelemetry = isSectionSettled && (phase === 'phase1' || phase === 'phase2');
-  const colorShift = phase === 'phase2' || phase === 'handoff' ? 1 : 0;
-  const handoffDim = phase === 'handoff';
-
-  const phaseOneReveal: Variants = useMemo(
-    () => ({
-      hidden: {},
-      visible: {},
-      exit: reduceMotion
-        ? { opacity: 0, transition: { duration: 0.01 } }
-        : { opacity: 0, y: -28, transition: { duration: 0.4, ease: EASE_OUT_SOFT } },
-    }),
-    [reduceMotion],
+      [rawProgress],
+    ),
   );
 
-  const headlineReveal: Variants = useMemo(
-    () => ({
-      hidden: {},
-      visible: {
-        transition: {
-          delayChildren: reduceMotion ? 0 : useFullDetailMotion ? 0.04 : 0.02,
-          staggerChildren: reduceMotion ? 0 : useFullDetailMotion ? 0.025 : 0.012,
-        },
-      },
-    }),
-    [reduceMotion, useFullDetailMotion],
-  );
+  const eyebrowOpacity = useTransform(storyProgress, [0.04, 0.10, 0.88, 0.96], [0, 1, 1, 0]);
+  const statusOpacity = useTransform(storyProgress, [0.06, 0.12, 0.88, 0.95], [0, 0.95, 0.95, 0]);
+  const statusY = useTransform(storyProgress, [0.06, 0.12, 0.95], [10, 0, -10]);
 
-  const letterReveal: Variants = useMemo(
-    () => ({
-      hidden: reduceMotion
-        ? { opacity: 1 }
-        : useFullDetailMotion
-          ? { opacity: 0, y: 24, filter: 'blur(7px)' }
-          : { opacity: 0, y: 12, filter: 'none' },
-      visible: reduceMotion
-        ? { opacity: 1 }
-        : {
-            opacity: 1,
-            y: 0,
-            filter: 'none',
-            transition: { duration: useFullDetailMotion ? 0.52 : 0.36, ease: EASE_OUT_EXPO },
-          },
-    }),
-    [reduceMotion, useFullDetailMotion],
-  );
+  // Phase 1: No todo merece tu atención (0.00 - 0.50)
+  const phase1Opacity = useTransform(storyProgress, [0.04, 0.12, 0.44, 0.50], [0, 1, 1, 0]);
+  const phase1Y = useTransform(storyProgress, [0.04, 0.12, 0.50], [20, 0, -16]);
+  const noiseFieldOpacity = useTransform(storyProgress, [0.04, 0.12, 0.40, 0.48], [0, 0.8, 0.8, 0]);
 
-  const subFade: Variants = useMemo(
-    () => ({
-      hidden: reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 },
-      visible: {
-        opacity: 1,
-        y: 0,
-        transition: { duration: reduceMotion ? 0.01 : 0.5, ease: EASE_OUT_EXPO, delay: reduceMotion ? 0 : 0.1 },
-      },
-      exit: reduceMotion
-        ? { opacity: 0, transition: { duration: 0.01 } }
-        : { opacity: 0, y: -8, transition: { duration: 0.3, ease: EASE_OUT_SOFT } },
-    }),
-    [reduceMotion],
-  );
+  // Phase 2: Esto sí (0.48 - 1.00)
+  const phase2Opacity = useTransform(storyProgress, [0.48, 0.54, 0.90, 0.98], [0, 1, 1, 0]);
+  const phase2Y = useTransform(storyProgress, [0.48, 0.54, 0.98], [20, 0, -16]);
 
-  const heroReveal: Variants = useMemo(
-    () => ({
-      hidden: reduceMotion ? { opacity: 1 } : { opacity: 0, y: 28, scale: 0.95 },
-      visible: {
-        opacity: 1,
-        y: 0,
-        scale: 1,
-        transition: { duration: reduceMotion ? 0.01 : 0.6, ease: EASE_OUT_EXPO },
-      },
-      handoff: reduceMotion
-        ? { opacity: 0.35 }
-        : { opacity: 0.35, y: -12, transition: { duration: 0.45, ease: EASE_OUT_SOFT } },
-      exit: reduceMotion
-        ? { opacity: 0, transition: { duration: 0.01 } }
-        : { opacity: 0, y: -28, transition: { duration: 0.4, ease: EASE_OUT_SOFT } },
-    }),
-    [reduceMotion],
-  );
+  const colorShift = useTransform(storyProgress, [0.46, 0.60], [0, 1]);
 
   return (
     <section
       ref={containerRef}
       id={id}
-      className={`iv-noise-filter-transition${isSectionActive ? ' is-active' : ''}`}
+      className="iv-noise-filter-transition is-active select-none"
+      data-chapter="transition"
       aria-label="Transición narrativa: De Panorama a Prioridad"
     >
       <div className="iv-noise-filter-transition__sticky">
         {/* Layer 1: Ambient Background Radial Glows */}
-        <div
+        <motion.div
           className="iv-noise-filter-transition__ambient"
           style={{
-            background: `radial-gradient(ellipse 70% 60% at 50% 50%, rgba(${
-              Math.round(30 + colorShift * 60)
-            }, ${
-              Math.round(90 - colorShift * 20)
-            }, 255, ${0.18 + colorShift * 0.09}), transparent 74%)`,
+            background: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(56, 189, 248, 0.18), transparent 74%)',
           }}
           aria-hidden="true"
         />
@@ -276,19 +102,15 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
         {/* Layer 2: Subtle Depth Noise Texture */}
         <div className="iv-noise-filter-transition__grain" aria-hidden="true" />
 
-        {/* Layer 3: Interactive Organic 3D Framing Shapes with Multi-Layer 3D Depth & Translucent Feathering */}
+        {/* Layer 3: Interactive Organic 3D Framing Shapes */}
         <div className="iv-noise-filter-transition__organic-layer" aria-hidden="true">
-          {/* Left Organic Fluid Form (Top-Left Diagonal Entry) */}
-          <div
-            className={`iv-organic-shape iv-organic-shape--left ${isShapesActive ? 'is-active' : ''}`}
-          >
+          <div className="iv-organic-shape iv-organic-shape--left is-active">
             <svg
               className="iv-organic-shape__svg"
               viewBox="0 0 800 900"
               preserveAspectRatio="none"
             >
               <defs>
-                {/* Secondary Deep Back Wave Gradient (Soft Atmospheric Volume) */}
                 <linearGradient id="iv-left-back-wave-grad" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="#040e24" stopOpacity="0.55" />
                   <stop offset="40%" stopColor="#081b3e" stopOpacity="0.30" />
@@ -296,7 +118,6 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                   <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
                 </linearGradient>
 
-                {/* Primary Front 3D Silk Surface Gradient (Feathering to 100% Transparent) */}
                 <linearGradient id="iv-left-organic-grad" x1="0%" y1="0%" x2="85%" y2="85%">
                   <stop offset="0%" stopColor="#06132d" stopOpacity="0.75" />
                   <stop offset="28%" stopColor="#0a2046" stopOpacity="0.50" />
@@ -305,7 +126,6 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                   <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
                 </linearGradient>
 
-                {/* Volumetric Internal Ambient Light (Directional Specular Crest) */}
                 <radialGradient id="iv-left-specular" cx="42%" cy="32%" r="58%">
                   <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.28" />
                   <stop offset="35%" stopColor="#1d4ed8" stopOpacity="0.12" />
@@ -313,14 +133,12 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                   <stop offset="100%" stopColor="transparent" stopOpacity="0" />
                 </radialGradient>
 
-                {/* Inner Ridge Shadow / Ambient Occlusion */}
                 <linearGradient id="iv-left-crease-shadow" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="#01040a" stopOpacity="0.6" />
                   <stop offset="50%" stopColor="#020816" stopOpacity="0.2" />
                   <stop offset="100%" stopColor="transparent" stopOpacity="0" />
                 </linearGradient>
 
-                {/* Luminous Feathered Light Ray Gradient (Smooth 0% opacity fade at both tips) */}
                 <linearGradient id="iv-left-ray-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#38bdf8" stopOpacity="0" />
                   <stop offset="16%" stopColor="#38bdf8" stopOpacity="0.06" />
@@ -329,19 +147,8 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                   <stop offset="64%" stopColor="#93c5fd" stopOpacity="0.6" />
                   <stop offset="84%" stopColor="#818cf8" stopOpacity="0.06" />
                   <stop offset="100%" stopColor="#818cf8" stopOpacity="0" />
-                  {useFullDetailMotion && (
-                    <animateTransform
-                      attributeName="gradientTransform"
-                      type="translate"
-                      values="-0.9,0.9; 0.9,-0.9; -0.9,0.9"
-                      keyTimes="0; 0.5; 1"
-                      dur="5.5s"
-                      repeatCount="indefinite"
-                    />
-                  )}
                 </linearGradient>
 
-                {/* Atmospheric Neon Ray Bloom Filter */}
                 <filter id="iv-left-ray-bloom" x="-40%" y="-40%" width="180%" height="180%">
                   <feGaussianBlur stdDeviation="8" result="blur1" />
                   <feGaussianBlur stdDeviation="2.5" result="blur2" />
@@ -353,21 +160,18 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                 </filter>
               </defs>
 
-              {/* Layer 1: Secondary Back Wave Fold (Provides 3D relief & depth) */}
               <path
                 d="M 0,0 L 740,0 C 660,110 560,260 460,440 C 340,640 180,780 0,840 Z"
                 fill="url(#iv-left-back-wave-grad)"
                 className="iv-organic-shape__back-wave"
               />
 
-              {/* Layer 2: Primary Front 3D Silk Surface with Translucent Falloff */}
               <path
                 d="M 0,0 L 580,0 C 520,50 440,140 360,260 C 260,400 140,500 0,540 Z"
                 fill="url(#iv-left-organic-grad)"
                 className="iv-organic-shape__body"
               />
 
-              {/* Layer 3: Crease Shadow & Specular Shading */}
               <path
                 d="M 0,0 L 580,0 C 520,50 440,140 360,260 C 260,400 140,500 0,540 Z"
                 fill="url(#iv-left-specular)"
@@ -378,7 +182,6 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                 opacity="0.5"
               />
 
-              {/* Layer 4: Base Subtle Contour Line (Whisper of structural edge) */}
               <path
                 d="M 0,540 C 140,500 260,400 360,260 C 440,140 520,50 580,0"
                 fill="none"
@@ -386,7 +189,6 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                 strokeWidth="0.8"
               />
 
-              {/* Layer 5: Soft Atmospheric Glowing Haze (Feathered Ray) */}
               <path
                 d="M 0,540 C 140,500 260,400 360,260 C 440,140 520,50 580,0"
                 fill="none"
@@ -396,7 +198,6 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                 opacity="0.65"
               />
 
-              {/* Layer 6: Mid Radiant Light Beam Body */}
               <path
                 d="M 0,540 C 140,500 260,400 360,260 C 440,140 520,50 580,0"
                 fill="none"
@@ -406,7 +207,6 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                 opacity="0.88"
               />
 
-              {/* Layer 7: Crisp Specular Core Filament */}
               <path
                 d="M 0,540 C 140,500 260,400 360,260 C 440,140 520,50 580,0"
                 fill="none"
@@ -417,34 +217,28 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
             </svg>
           </div>
 
-          {/* Right Organic Fluid Form (Bottom-Right Diagonal Entry) */}
-          <div
-            className={`iv-organic-shape iv-organic-shape--right ${isShapesActive ? 'is-active' : ''}`}
-          >
+          <div className="iv-organic-shape iv-organic-shape--right is-active">
             <svg
               className="iv-organic-shape__svg"
               viewBox="0 0 800 900"
               preserveAspectRatio="none"
             >
               <defs>
-                {/* Secondary Deep Back Wave Gradient (Soft Atmospheric Volume) */}
                 <linearGradient id="iv-right-back-wave-grad" x1="100%" y1="100%" x2="0%" y2="0%">
-                  <stop offset="0%" stopColor="#0a0724" stopOpacity="0.55" />
-                  <stop offset="40%" stopColor="#140e38" stopOpacity="0.30" />
-                  <stop offset="75%" stopColor="#221558" stopOpacity="0.10" />
-                  <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
+                  <stop offset="0%" stopColor="#0c0724" stopOpacity="0.55" />
+                  <stop offset="40%" stopColor="#170c44" stopOpacity="0.30" />
+                  <stop offset="75%" stopColor="#251268" stopOpacity="0.10" />
+                  <stop offset="100%" stopColor="#c084fc" stopOpacity="0" />
                 </linearGradient>
 
-                {/* Primary Front 3D Silk Surface Gradient (Feathering to 100% Transparent) */}
                 <linearGradient id="iv-right-organic-grad" x1="100%" y1="100%" x2="15%" y2="15%">
-                  <stop offset="0%" stopColor="#0d092d" stopOpacity="0.75" />
+                  <stop offset="0%" stopColor="#0e072b" stopOpacity="0.75" />
                   <stop offset="28%" stopColor="#161044" stopOpacity="0.50" />
                   <stop offset="58%" stopColor="#261a64" stopOpacity="0.28" />
                   <stop offset="82%" stopColor="#3730a3" stopOpacity="0.08" />
                   <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
                 </linearGradient>
 
-                {/* Volumetric Internal Ambient Light (Directional Specular Crest) */}
                 <radialGradient id="iv-right-specular" cx="58%" cy="68%" r="58%">
                   <stop offset="0%" stopColor="#c084fc" stopOpacity="0.28" />
                   <stop offset="35%" stopColor="#7c3aed" stopOpacity="0.12" />
@@ -452,14 +246,12 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                   <stop offset="100%" stopColor="transparent" stopOpacity="0" />
                 </radialGradient>
 
-                {/* Inner Ridge Shadow / Ambient Occlusion */}
                 <linearGradient id="iv-right-crease-shadow" x1="100%" y1="100%" x2="0%" y2="0%">
                   <stop offset="0%" stopColor="#01040a" stopOpacity="0.6" />
                   <stop offset="50%" stopColor="#040214" stopOpacity="0.2" />
                   <stop offset="100%" stopColor="transparent" stopOpacity="0" />
                 </linearGradient>
 
-                {/* Luminous Feathered Light Ray Gradient (Smooth 0% opacity fade at both tips) */}
                 <linearGradient id="iv-right-ray-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#c084fc" stopOpacity="0" />
                   <stop offset="16%" stopColor="#c084fc" stopOpacity="0.06" />
@@ -468,19 +260,8 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                   <stop offset="64%" stopColor="#818cf8" stopOpacity="0.6" />
                   <stop offset="84%" stopColor="#38bdf8" stopOpacity="0.06" />
                   <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
-                  {useFullDetailMotion && (
-                    <animateTransform
-                      attributeName="gradientTransform"
-                      type="translate"
-                      values="0.9,-0.9; -0.9,0.9; 0.9,-0.9"
-                      keyTimes="0; 0.5; 1"
-                      dur="5.5s"
-                      repeatCount="indefinite"
-                    />
-                  )}
                 </linearGradient>
 
-                {/* Atmospheric Neon Ray Bloom Filter */}
                 <filter id="iv-right-ray-bloom" x="-40%" y="-40%" width="180%" height="180%">
                   <feGaussianBlur stdDeviation="8" result="blur1" />
                   <feGaussianBlur stdDeviation="2.5" result="blur2" />
@@ -492,21 +273,18 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                 </filter>
               </defs>
 
-              {/* Layer 1: Secondary Back Wave Fold (Provides 3D relief & depth) */}
               <path
                 d="M 800,900 L 80,900 C 180,810 320,680 440,500 C 560,300 700,180 800,120 Z"
                 fill="url(#iv-right-back-wave-grad)"
                 className="iv-organic-shape__back-wave"
               />
 
-              {/* Layer 2: Primary Front 3D Silk Surface with Translucent Falloff */}
               <path
                 d="M 800,900 L 220,900 C 280,840 360,740 440,600 C 540,440 660,380 800,360 Z"
                 fill="url(#iv-right-organic-grad)"
                 className="iv-organic-shape__body"
               />
 
-              {/* Layer 3: Crease Shadow & Specular Shading */}
               <path
                 d="M 800,900 L 220,900 C 280,840 360,740 440,600 C 540,440 660,380 800,360 Z"
                 fill="url(#iv-right-specular)"
@@ -517,7 +295,6 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                 opacity="0.5"
               />
 
-              {/* Layer 4: Base Subtle Contour Line (Whisper of structural edge) */}
               <path
                 d="M 220,900 C 280,840 360,740 440,600 C 540,440 660,380 800,360"
                 fill="none"
@@ -525,7 +302,6 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                 strokeWidth="0.8"
               />
 
-              {/* Layer 5: Soft Atmospheric Glowing Haze (Feathered Ray) */}
               <path
                 d="M 220,900 C 280,840 360,740 440,600 C 540,440 660,380 800,360"
                 fill="none"
@@ -535,7 +311,6 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                 opacity="0.65"
               />
 
-              {/* Layer 6: Mid Radiant Light Beam Body */}
               <path
                 d="M 220,900 C 280,840 360,740 440,600 C 540,440 660,380 800,360"
                 fill="none"
@@ -545,7 +320,6 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
                 opacity="0.88"
               />
 
-              {/* Layer 7: Crisp Specular Core Filament */}
               <path
                 d="M 220,900 C 280,840 360,740 440,600 C 540,440 660,380 800,360"
                 fill="none"
@@ -557,41 +331,34 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
           </div>
         </div>
 
-        {/* Secondary Noise Particles — visible only during Phase 1 */}
-        <AnimatePresence>
-          {showNoise && !reduceMotion && (
-            <motion.div
-              key="noise-field"
-              className="iv-noise-filter-transition__noise-field"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.8 }}
-              exit={{ opacity: 0, transition: { duration: 0.35, ease: EASE_OUT_SOFT } }}
-              aria-hidden="true"
-            >
-              {NOISE_PARTICLES.map((pt) => (
-                <span
-                  key={pt.id}
-                  className="iv-noise-filter-transition__noise-dot"
-                  style={{
-                    left: `${pt.startX}%`,
-                    top: `${pt.startY}%`,
-                    width: `${pt.size}px`,
-                    height: `${pt.size}px`,
-                    backgroundColor: `hsla(${pt.hue}, 80%, 75%, ${pt.baseAlpha})`,
-                    boxShadow: `0 0 ${pt.size * 3.5}px hsla(${pt.hue}, 90%, 70%, ${pt.baseAlpha * 0.85})`,
-                  }}
-                />
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Secondary Noise Particles */}
+        {!reduceMotion && (
+          <motion.div
+            className="iv-noise-filter-transition__noise-field"
+            style={{ opacity: reduceMotion ? 0 : noiseFieldOpacity }}
+            aria-hidden="true"
+          >
+            {NOISE_PARTICLES.map((pt) => (
+              <span
+                key={pt.id}
+                className="iv-noise-filter-transition__noise-dot"
+                style={{
+                  left: `${pt.startX}%`,
+                  top: `${pt.startY}%`,
+                  width: `${pt.size}px`,
+                  height: `${pt.size}px`,
+                  backgroundColor: `hsla(${pt.hue}, 80%, 75%, ${pt.baseAlpha})`,
+                  boxShadow: `0 0 ${pt.size * 3.5}px hsla(${pt.hue}, 90%, 70%, ${pt.baseAlpha * 0.85})`,
+                }}
+              />
+            ))}
+          </motion.div>
+        )}
 
         {/* Top Micro-Indicator: PANORAMA -> PRIORIDAD */}
         <motion.div
           className="iv-noise-filter-transition__eyebrow"
-          initial={false}
-          animate={{ opacity: isSectionSettled ? (handoffDim ? 0.4 : 1) : 0 }}
-          transition={{ duration: reduceMotion ? 0.01 : 0.4, ease: EASE_OUT_SOFT }}
+          style={{ opacity: reduceMotion ? 1 : eyebrowOpacity }}
           aria-hidden="true"
         >
           <span className="iv-noise-filter-transition__eyebrow-step">00 → 01</span>
@@ -600,17 +367,14 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
         </motion.div>
 
         {/* Telemetry Status Strip */}
-        <AnimatePresence>
-          {showTelemetry && (
-            <motion.div
-              key="telemetry"
-              className="iv-noise-filter-transition__status-bar"
-              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 0.95, y: 0 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, transition: { duration: 0.35, ease: EASE_OUT_SOFT } }}
-              transition={{ duration: reduceMotion ? 0.01 : 0.45, ease: EASE_OUT_EXPO }}
-              aria-hidden="true"
-            >
+        <motion.div
+          className="iv-noise-filter-transition__status-bar"
+          style={{
+            opacity: reduceMotion ? 0.95 : statusOpacity,
+            y: reduceMotion ? 0 : statusY,
+          }}
+          aria-hidden="true"
+        >
           <div className="iv-noise-filter-transition__status-pill">
             <span className="is-active"><b>04</b> VARIABLES EVALUADAS</span>
             <i>→</i>
@@ -618,81 +382,55 @@ export const NoiseFilterTransition: React.FC<NoiseFilterTransitionProps> = ({
             <i>→</i>
             <span className="is-priority"><b>01</b> PRIORIDAD AISLADA</span>
           </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        </motion.div>
 
-        {/* Editorial Text Layer — discrete beats, never mid-scrub */}
-        <div className="iv-noise-filter-transition__content">
-          <AnimatePresence mode="sync">
-            {showPhase1 && (
-              <motion.div
-                key="noise-phase1"
-                className="iv-noise-filter-transition__act iv-noise-filter-transition__act--1"
-                variants={phaseOneReveal}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
-                <motion.h2
-                  className="iv-noise-filter-transition__headline"
-                  variants={headlineReveal}
-                  aria-label="No todo merece tu atención."
-                >
-                  {PHASE_ONE_HEADLINE.map((line, lineIndex) => (
-                    <span
-                      key={line}
-                      className="iv-noise-filter-transition__headline-line"
-                      aria-hidden="true"
-                    >
-                      {Array.from(line).map((character, characterIndex) => (
-                        <motion.span
-                          key={`${lineIndex}-${characterIndex}`}
-                          className="iv-noise-filter-transition__headline-letter"
-                          variants={letterReveal}
-                        >
-                          {character === ' ' ? '\u00a0' : character}
-                        </motion.span>
-                      ))}
-                    </span>
-                  ))}
-                </motion.h2>
-                <motion.p className="iv-noise-filter-transition__sub" variants={subFade}>
-                  FOCUS procesó tu operación y descartó el ruido para aislar lo que realmente impacta tus resultados.
-                </motion.p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        {/* Editorial Text Layer */}
+        <div className="iv-noise-filter-transition__content why-content-stack relative">
+          {/* Phase 1 */}
+          <motion.div
+            className="iv-noise-filter-transition__act iv-noise-filter-transition__act--1 absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
+            style={{
+              opacity: reduceMotion ? 1 : phase1Opacity,
+              y: reduceMotion ? 0 : phase1Y,
+              display: useTransform(storyProgress, (p: number) => (p <= 0.52 ? 'flex' : 'none')),
+            }}
+          >
+            <h2
+              className="iv-noise-filter-transition__headline"
+              aria-label="No todo merece tu atención."
+            >
+              {PHASE_ONE_HEADLINE.map((line) => (
+                <span key={line} className="iv-noise-filter-transition__headline-line" aria-hidden="true">
+                  {line}
+                </span>
+              ))}
+            </h2>
+            <p className="iv-noise-filter-transition__sub">
+              FOCUS procesó tu operación y descartó el ruido para aislar lo que realmente impacta tus resultados.
+            </p>
+          </motion.div>
 
-          <AnimatePresence mode="sync">
-            {showPhase2 && (
-              <motion.div
-                key="noise-phase2"
-                className="iv-noise-filter-transition__act iv-noise-filter-transition__act--2"
-                variants={heroReveal}
-                initial="hidden"
-                animate={handoffDim ? 'handoff' : 'visible'}
-                exit="exit"
-              >
-                <motion.div className="iv-noise-filter-transition__hero-eyebrow" variants={subFade}>
-                  <span>01</span>
-                  <i />
-                  <strong>ASUNTO PRIORITARIO AISLADO</strong>
-                </motion.div>
+          {/* Phase 2 */}
+          <motion.div
+            className="iv-noise-filter-transition__act iv-noise-filter-transition__act--2 absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
+            style={{
+              opacity: reduceMotion ? 1 : phase2Opacity,
+              y: reduceMotion ? 0 : phase2Y,
+              display: useTransform(storyProgress, (p: number) => (p >= 0.46 ? 'flex' : 'none')),
+            }}
+          >
+            <div className="iv-noise-filter-transition__hero-eyebrow">
+              <span>01</span>
+              <i />
+              <strong>ASUNTO PRIORITARIO AISLADO</strong>
+            </div>
 
-                <motion.h2 className="iv-noise-filter-transition__headline is-highlight" variants={heroReveal}>
-                  ESTO SÍ.
-                </motion.h2>
+            <h2 className="iv-noise-filter-transition__headline is-highlight">ESTO SÍ.</h2>
 
-                <motion.p
-                  className="iv-noise-filter-transition__sub is-lead"
-                  variants={subFade}
-                >
-                  Empecemos por el indicador que requiere tu atención y toma de decisiones primero.
-                </motion.p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+            <p className="iv-noise-filter-transition__sub is-lead">
+              Empecemos por el indicador que requiere tu atención y toma de decisiones primero.
+            </p>
+          </motion.div>
         </div>
       </div>
     </section>

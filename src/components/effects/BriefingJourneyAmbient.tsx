@@ -2,6 +2,11 @@ import React, { useEffect, useRef } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { getPerfConfig, startManagedLoop, subscribePerf, type PerfConfig } from '../../perf';
 
+interface BriefingJourneyAmbientProps {
+  scrollRoot?: HTMLElement | null;
+  enabled?: boolean;
+}
+
 interface Particle {
   x: number;
   y: number;
@@ -36,10 +41,15 @@ const createParticle = (width: number, height: number): Particle => {
   };
 };
 
-export const BriefingJourneyAmbient: React.FC = () => {
+export const BriefingJourneyAmbient: React.FC<BriefingJourneyAmbientProps> = ({
+  scrollRoot = null,
+  enabled = true,
+}) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const reduceMotion = !!useReducedMotion();
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
 
   useEffect(() => {
     if (reduceMotion) return undefined;
@@ -59,7 +69,6 @@ export const BriefingJourneyAmbient: React.FC = () => {
     const particles: Particle[] = [];
 
     const resize = () => {
-      // Viewport only — never size to full journey scrollHeight
       const nextWidth = root.clientWidth || window.innerWidth;
       const nextHeight = root.clientHeight || window.innerHeight;
       if (!nextWidth || !nextHeight) return;
@@ -77,8 +86,6 @@ export const BriefingJourneyAmbient: React.FC = () => {
       canvas.style.height = `${height}px`;
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // Reescala solo las particulas que ya existian; las nuevas nacen ya
-      // dentro del nuevo tamano.
       const previousCount = particles.length;
       while (particles.length > particleCount) particles.pop();
 
@@ -128,20 +135,23 @@ export const BriefingJourneyAmbient: React.FC = () => {
     const observer = new ResizeObserver(resize);
     observer.observe(root);
 
-    // Pausa automatica fuera de pantalla / con la pestana oculta.
-    const stopLoop = startManagedLoop({ element: root, onFrame: tick });
+    const stopLoop = startManagedLoop({
+      element: root,
+      root: scrollRoot,
+      onFrame: tick,
+      shouldRun: () => enabledRef.current,
+    });
 
     return () => {
       stopLoop();
       unsubscribePerf();
       observer.disconnect();
     };
-  }, [reduceMotion]);
+  }, [reduceMotion, scrollRoot, enabled]);
 
   return (
     <div ref={rootRef} className="iv-journey__ambient" aria-hidden="true">
       {!reduceMotion && <canvas ref={canvasRef} className="iv-journey__ambient-canvas" />}
-      {/* Two soft static glows only — no animated scale blur orbs */}
       <div className="iv-journey__ambient-glows">
         <i className="iv-journey__glow is-a" />
         <i className="iv-journey__glow is-c" />

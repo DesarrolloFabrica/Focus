@@ -30,6 +30,7 @@ interface ArrivalSectionProps {
   onStartBriefing: () => void;
   isStartingTransition?: boolean;
   isBriefingActive?: boolean;
+  briefingActiveStep?: number;
   onOpenDemo?: () => void;
   header?: React.ReactNode;
   children?: React.ReactNode;
@@ -52,6 +53,7 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
   onStartBriefing,
   isStartingTransition = false,
   isBriefingActive = false,
+  briefingActiveStep = 0,
   onOpenDemo,
   header,
   children,
@@ -610,7 +612,10 @@ export const ArrivalSection: React.FC<ArrivalSectionProps> = ({
           {showBriefing ? (
             <IntroScrollContext.Provider value={scrollRef}>
               <div className="iv-journey focus-narrative" aria-label="Briefing guiado de FOCUS">
-                <BriefingJourneyAmbient />
+                <BriefingJourneyAmbient
+                  scrollRoot={scrollRef.current}
+                  enabled={briefingActiveStep <= 2}
+                />
                 <section
                   id="briefing-panorama-gate"
                   className="iv-scene iv-panorama"

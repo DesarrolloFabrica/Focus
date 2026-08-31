@@ -3,7 +3,7 @@ import { motion, useReducedMotion, type Variants } from 'motion/react';
 import { ChevronDown, TrendingUp, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
 import focusPriorityBeacon from '../../assets/focus-priority-beacon.webp';
 import { FocusPriority } from '../../types/focus';
-import { useIntroScrollRoot } from './ArrivalSection';
+import { usePerfConfig } from '../../perf';
 
 interface PrioritySectionProps {
   priority: FocusPriority;
@@ -15,13 +15,13 @@ const EASE_OUT_SOFT: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority }) => {
   const reduceMotion = !!useReducedMotion();
-  const scrollRootRef = useIntroScrollRoot();
+  const perf = usePerfConfig();
+  const useFullDetailMotion = !reduceMotion && perf.tier === 'high';
 
   const viewport = {
-    once: false,
-    amount: 0.22 as const,
-    margin: '0px 0px -10% 0px' as const,
-    root: scrollRootRef,
+    once: true,
+    amount: 0.05 as const,
+    margin: '100px 0px 0px 0px' as const,
   };
 
   const sectionVariants: Variants = {
@@ -115,26 +115,32 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority }) =>
       className="iv-priority-section relative pb-4 sm:pb-6 overflow-hidden flex flex-col"
       data-chapter="priority"
     >
-      {/* Soft static ambient — opacity pulse only (no scale on blurred layers) */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
-        <motion.div
-          initial={reduceMotion ? false : { opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={viewport}
-          transition={{ duration: 1, ease: EASE_OUT_SOFT }}
-          className="absolute inset-0"
-        >
+      {/* Soft static ambient — opacity pulse only on high tier */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden select-none" aria-hidden="true">
+        {useFullDetailMotion ? (
           <motion.div
-            animate={reduceMotion ? false : { opacity: [0.14, 0.22, 0.14] }}
-            transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-            className="absolute top-1/3 left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px]"
-          />
-          <motion.div
-            animate={reduceMotion ? false : { opacity: [0.08, 0.16, 0.08] }}
-            transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-            className="absolute bottom-10 right-[-5%] w-[420px] h-[420px] bg-indigo-600/15 rounded-full blur-[100px]"
-          />
-        </motion.div>
+            initial={false}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, ease: EASE_OUT_SOFT }}
+            className="absolute inset-0"
+          >
+            <motion.div
+              animate={{ opacity: [0.14, 0.22, 0.14] }}
+              transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+              className="iv-priority-section__ambient-orb is-animated absolute top-1/3 left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px]"
+            />
+            <motion.div
+              animate={{ opacity: [0.08, 0.16, 0.08] }}
+              transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+              className="iv-priority-section__ambient-orb is-animated absolute bottom-10 right-[-5%] w-[420px] h-[420px] bg-indigo-600/15 rounded-full blur-[100px]"
+            />
+          </motion.div>
+        ) : (
+          <>
+            <div className="iv-priority-section__ambient-orb absolute top-1/3 left-[-10%] w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(37,99,235,0.18)_0%,rgba(37,99,235,0.06)_42%,transparent_72%)]" />
+            <div className="iv-priority-section__ambient-orb absolute bottom-10 right-[-5%] w-[420px] h-[420px] rounded-full bg-[radial-gradient(circle,rgba(79,70,229,0.12)_0%,rgba(79,70,229,0.04)_42%,transparent_72%)]" />
+          </>
+        )}
       </div>
 
       <motion.div
@@ -176,27 +182,20 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority }) =>
             >
               {/* Soft volumetric backlight (sits behind crystal) */}
               <motion.div
+                variants={fadeUp}
                 className="absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 w-[85%] h-[75%] rounded-full bg-gradient-to-t from-blue-600/35 via-cyan-500/20 to-purple-600/15 blur-[70px] pointer-events-none"
-                initial={reduceMotion ? false : { opacity: 0, scale: 0.7 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={viewport}
-                transition={{ duration: 1.2, delay: 0.25, ease: EASE_OUT_SOFT }}
               />
 
-              <motion.svg
-                className="absolute inset-0 w-full h-full pointer-events-none z-[1]"
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none z-[1] opacity-35"
                 viewBox="0 0 420 360"
                 aria-hidden="true"
-                initial={reduceMotion ? false : { opacity: 0 }}
-                whileInView={{ opacity: 0.35 }}
-                viewport={viewport}
-                transition={{ duration: 1, delay: 0.35 }}
               >
                 <ellipse cx="210" cy="230" rx="170" ry="58" fill="none" stroke="rgba(101, 217, 255, 0.4)" strokeWidth="1" strokeDasharray="5 9" />
                 <ellipse cx="210" cy="230" rx="188" ry="74" fill="none" stroke="rgba(147, 197, 253, 0.22)" strokeWidth="0.8" transform="rotate(-12 210 230)" />
                 <circle cx="105" cy="190" r="2.5" fill="#38bdf8" />
                 <circle cx="325" cy="250" r="2" fill="#c084fc" />
-              </motion.svg>
+              </svg>
 
               {/* Image plate: soft elliptical feather — no square crop */}
               <div
@@ -215,22 +214,21 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority }) =>
                 <motion.img
                   src={focusPriorityBeacon}
                   alt="FOCUS Priority Beacon"
+                  loading="eager"
+                  decoding="async"
                   className="w-full h-full object-contain object-center scale-[1.1] filter saturate-[1.28] contrast-[1.08] brightness-[1.05] mix-blend-screen pointer-events-none select-none"
-                  animate={reduceMotion ? false : { y: [-4, 4, -4] }}
+                  animate={useFullDetailMotion ? { y: [-4, 4, -4] } : false}
                   transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
                 />
               </div>
 
               {/* Telemetry badge — sits above feather layers */}
               <motion.div
+                variants={fadeUp}
                 className="absolute bottom-3 right-3 z-20 flex items-center gap-3 px-3.5 py-2 rounded-xl bg-[#060b18]/95 border border-cyan-500/30 shadow-[0_12px_32px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.15)]"
-                initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.9 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={viewport}
-                transition={{ duration: 0.7, delay: 0.55, ease: EASE_OUT_EXPO }}
               >
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                  <span className={`w-2 h-2 rounded-full bg-cyan-400${useFullDetailMotion ? ' animate-ping' : ''}`} />
                   <div className="flex flex-col">
                     <span className="text-[9px] text-cyan-300 font-mono tracking-widest uppercase font-semibold">Señal Activa</span>
                     <strong className="text-white text-sm font-bold font-mono leading-tight">{priority.currentMetric}</strong>
@@ -268,9 +266,6 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority }) =>
               <motion.article
                 custom={0}
                 variants={cardVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={viewport}
                 className="group relative overflow-hidden rounded-[1.75rem] p-6 lg:p-7 border border-white/10 bg-[#0a1220]/95 shadow-[0_16px_36px_-8px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] border-b-2 border-b-cyan-500/80 transition-all duration-300 hover:border-b-cyan-400 hover:shadow-[0_20px_42px_-8px_rgba(6,182,212,0.35)] hover:-translate-y-1"
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-[40px] pointer-events-none group-hover:bg-cyan-500/20 transition-all" />
@@ -296,9 +291,6 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority }) =>
               <motion.article
                 custom={1}
                 variants={cardVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={viewport}
                 className="group relative overflow-hidden rounded-[1.75rem] p-6 lg:p-7 border border-white/10 bg-[#0a1220]/95 shadow-[0_16px_36px_-8px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] border-b-2 border-b-blue-500/80 transition-all duration-300 hover:border-b-blue-400 hover:shadow-[0_20px_42px_-8px_rgba(59,130,246,0.35)] hover:-translate-y-1"
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-[40px] pointer-events-none group-hover:bg-blue-500/20 transition-all" />
@@ -327,9 +319,6 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority }) =>
             <motion.article
               custom={2}
               variants={cardVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={viewport}
               className="group relative overflow-hidden rounded-[2rem] p-7 lg:p-9 border border-white/10 bg-[#080e1a]/96 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.14)] border-b-2 border-b-purple-500/80 transition-all duration-300 hover:border-b-purple-400 hover:shadow-[0_24px_54px_-10px_rgba(168,85,247,0.3)]"
             >
               <div className="absolute top-0 right-1/4 w-72 h-40 bg-purple-500/10 rounded-full blur-[60px] pointer-events-none group-hover:bg-purple-500/20 transition-all" />
@@ -375,9 +364,6 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority }) =>
                       key={metric.label}
                       custom={i}
                       variants={metricChipVariants}
-                      initial="hidden"
-                      whileInView="visible"
-                      viewport={viewport}
                       className="px-4 py-3 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col justify-center"
                     >
                       <small className="text-slate-400 text-xs font-mono uppercase tracking-wider mb-1">{metric.label}</small>
@@ -396,11 +382,8 @@ export const PrioritySection: React.FC<PrioritySectionProps> = ({ priority }) =>
 
         {/* Scroll Cue */}
         <motion.div
+          variants={fadeUp}
           className="mt-5 sm:mt-6 flex flex-col items-center justify-center text-slate-500 text-xs font-mono tracking-widest uppercase gap-2"
-          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ ...viewport, amount: 0.4 }}
-          transition={{ duration: 0.9, delay: 0.7, ease: EASE_OUT_SOFT }}
         >
           <span>Desliza para entender por qué</span>
           <motion.div

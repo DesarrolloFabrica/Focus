@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from
 import { useReducedMotion } from 'motion/react';
 import { getFocusBriefing } from '../../data/mockData';
 import { FocusPerspective, FocusScenario } from '../../types/focus';
-import { pauseSubtreeAnimations, resumeSubtreeAnimations } from '../../perf';
+import { pauseSubtreeAnimations, resumeSubtreeAnimations, initBriefingScrollBus } from '../../perf';
 import { NarrativeTransition } from '../briefing/NarrativeTransition';
 import { NoiseFilterTransition } from '../briefing/NoiseFilterTransition';
 import { WhyChangesBridge } from '../briefing/WhyChangesBridge';
@@ -253,6 +253,13 @@ export const FocusExperience: React.FC = () => {
     };
   }, [isBriefingVisible]);
 
+  useEffect(() => {
+    if (!isBriefingVisible) return undefined;
+    const root = getScrollRoot();
+    initBriefingScrollBus(root);
+    return () => initBriefingScrollBus(null);
+  }, [isBriefingVisible]);
+
   /**
    * El arbol del briefing solo depende de `briefing`. Al memorizarlo, avanzar
    * de capitulo (que cambia activeStep muchas veces durante el scroll) ya no
@@ -269,13 +276,7 @@ export const FocusExperience: React.FC = () => {
         <WhyChangesBridge conclusion={briefing.mainPriority.explanation.summaryText} />
         <WhatChangedSection changes={briefing.changes} onContinue={() => scrollTo('section-chapter-anomaly')} />
         <AnomalySection anomaly={briefing.anomaly} />
-        <StableSection entities={briefing.entities} onContinue={() => scrollTo('transition-to-summary')} />
-        <NarrativeTransition
-          id="transition-to-summary"
-          firstLine="Prioridad, cambios, anomalía y cobertura."
-          secondLine="Todo vuelve a una sola lectura."
-          variant="synthesis"
-        />
+        <StableSection entities={briefing.entities} onContinue={() => scrollTo('section-chapter-complete')} />
         <CompleteSection
           briefing={briefing}
           onInvestigate={() => {
@@ -339,6 +340,7 @@ export const FocusExperience: React.FC = () => {
             onStartBriefing={handleStartBriefing}
             isStartingTransition={isStartingTransition}
             isBriefingActive={isBriefingVisible}
+            briefingActiveStep={activeStep}
             onOpenDemo={openDemo}
             header={briefingChrome}
           >

@@ -18,13 +18,12 @@ interface AmbientVideoProps {
  */
 export const AmbientVideo: React.FC<AmbientVideoProps> = ({ src, poster, className = '' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [shouldLoad, setShouldLoad] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return undefined;
 
-    let inView = false;
+    let inView = true;
 
     const sync = () => {
       if (inView && !document.hidden) {
@@ -43,17 +42,14 @@ export const AmbientVideo: React.FC<AmbientVideoProps> = ({ src, poster, classNa
       observer = new IntersectionObserver(
         (entries) => {
           inView = entries.some((entry) => entry.isIntersecting);
-          if (inView) setShouldLoad(true);
           sync();
         },
-        { rootMargin: '300px', threshold: 0 },
+        { rootMargin: '400px', threshold: 0 },
       );
       observer.observe(video);
-    } else {
-      inView = true;
-      setShouldLoad(true);
-      sync();
     }
+
+    sync();
 
     return () => {
       observer?.disconnect();
@@ -65,12 +61,13 @@ export const AmbientVideo: React.FC<AmbientVideoProps> = ({ src, poster, classNa
     <video
       ref={videoRef}
       className={className}
-      src={shouldLoad ? src : undefined}
+      src={src}
       poster={poster}
+      autoPlay
       loop
       muted
       playsInline
-      preload={shouldLoad ? 'auto' : 'none'}
+      preload="auto"
       aria-hidden="true"
     />
   );

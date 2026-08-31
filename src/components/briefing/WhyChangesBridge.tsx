@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
-import { isSubtreeInView, observeInView, usePerfConfig } from '../../perf';
+import React, { useCallback, useRef } from 'react';
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react';
+import { useBriefingSectionMetrics, usePerfConfig } from '../../perf';
 import { OrganicFramingShapes } from '../effects/OrganicFramingShapes';
 import { useIntroScrollRoot } from '../sections/ArrivalSection';
 
@@ -8,269 +8,113 @@ interface WhyChangesBridgeProps {
   conclusion: string;
 }
 
-type BridgeBeat = 'conclusion' | 'handoff';
-
-const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
-const EASE_OUT_SOFT: [number, number, number, number] = [0.22, 1, 0.36, 1];
-
-const BRIDGE_BEATS: BridgeBeat[] = ['conclusion', 'handoff'];
-
-/** Más recorrido de scroll y histéresis para que cada beat no salte de golpe. */
-const BRIDGE_BEAT_GATES: Record<BridgeBeat, { forward: number; backward: number }> = {
-  conclusion: { forward: 0.64, backward: 0 },
-  handoff: { forward: 1.01, backward: 0.52 },
-};
-
-function beatFromProgressForward(p: number): BridgeBeat {
-  if (p < BRIDGE_BEAT_GATES.conclusion.forward) return 'conclusion';
-  return 'handoff';
-}
-
-function resolveBridgeBeat(p: number, current: BridgeBeat, goingUp: boolean): BridgeBeat {
-  if (!goingUp) return beatFromProgressForward(p);
-
-  let index = BRIDGE_BEATS.indexOf(current);
-  while (index > 0 && p < BRIDGE_BEAT_GATES[BRIDGE_BEATS[index]].backward) {
-    index -= 1;
-  }
-  return BRIDGE_BEATS[index];
-}
-
 export const WhyChangesBridge: React.FC<WhyChangesBridgeProps> = ({ conclusion }) => {
   const sectionRef = useRef<HTMLElement>(null);
   const scrollRootRef = useIntroScrollRoot();
   const reduceMotion = !!useReducedMotion();
   const perf = usePerfConfig();
-  const [beat, setBeat] = useState<BridgeBeat>('conclusion');
-  const [scrollDirection, setScrollDirection] = useState<'up' | 'down'>('down');
-  const [isCopyVisible, setIsCopyVisible] = useState(false);
-  const [areShapesActive, setAreShapesActive] = useState(false);
+  const scrollRoot = scrollRootRef?.current ?? null;
 
-  useEffect(() => {
-    const section = sectionRef.current;
-    const root = scrollRootRef?.current ?? (document.getElementById('iv-intro-scroll') as HTMLElement | null);
-    if (!section) return undefined;
+  const rawProgress = useMotionValue(0);
+  const animatedStoryProgress = useSpring(rawProgress, {
+    stiffness: 240,
+    damping: 28,
+    mass: 0.5,
+    restDelta: 0.0005,
+    restSpeed: 0.002,
+  });
+  const storyProgress = reduceMotion ? rawProgress : animatedStoryProgress;
 
-    let frameId = 0;
-    let lastBeat: BridgeBeat | null = null;
-    let lastCopyVisible: boolean | null = null;
-    let lastShapesActive: boolean | null = null;
-    let lastViewportHeight = -1;
-    let lastOffset = -1;
-    let isNearViewport = true;
-    let pendingFinalPass = false;
-
-    const handleScroll = () => {
-      cancelAnimationFrame(frameId);
-      frameId = window.requestAnimationFrame(() => {
-        if (!isSubtreeInView(section) && !pendingFinalPass) return;
-        if (!isNearViewport && !pendingFinalPass) return;
-        pendingFinalPass = false;
-
-        const sectionRect = section.getBoundingClientRect();
-        const rootRect = root?.getBoundingClientRect();
-        const rootTop = rootRect?.top ?? 0;
-        const rootHeight = root?.clientHeight ?? window.innerHeight;
-        const rootBottom = rootTop + rootHeight;
-        const totalDistance = Math.max(1, sectionRect.height - rootHeight);
-        const currentOffset = rootTop - sectionRect.top;
-        const progress = Math.max(0, Math.min(1, currentOffset / totalDistance));
-        const goingUp = lastOffset >= 0 && currentOffset < lastOffset;
-        lastOffset = currentOffset;
-
-        const currentBeat = lastBeat ?? 'conclusion';
-        const nextBeat = resolveBridgeBeat(progress, currentBeat, goingUp);
-        const nextCopyVisible =
-          sectionRect.bottom > rootTop + rootHeight * 0.08 &&
-          sectionRect.top < rootBottom - rootHeight * 0.18;
-        const nextShapesActive =
-          sectionRect.top <= rootTop + rootHeight * 0.06 &&
-          sectionRect.bottom >= rootBottom - rootHeight * 0.06;
-
-        if (rootHeight !== lastViewportHeight) {
-          lastViewportHeight = rootHeight;
-          section.style.setProperty('--iv-why-bridge-viewport-height', `${rootHeight}px`);
-        }
-
-        if (nextBeat !== lastBeat) {
-          setScrollDirection(goingUp ? 'up' : 'down');
-          lastBeat = nextBeat;
-          setBeat(nextBeat);
-        }
-
-        if (nextCopyVisible !== lastCopyVisible) {
-          lastCopyVisible = nextCopyVisible;
-          setIsCopyVisible(nextCopyVisible);
-        }
-
-        if (nextShapesActive !== lastShapesActive) {
-          lastShapesActive = nextShapesActive;
-          setAreShapesActive(nextShapesActive);
-        }
-      });
-    };
-
-    const target = root ?? window;
-    target.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleScroll);
-
-    const stopObserving = observeInView(
-      section,
-      (inView) => {
-        isNearViewport = inView;
-        if (!inView) pendingFinalPass = true;
-        handleScroll();
+  useBriefingSectionMetrics(
+    sectionRef,
+    'why-bridge',
+    scrollRoot,
+    useCallback(
+      (metrics) => {
+        rawProgress.set(metrics.progress);
       },
-      '200px',
-      root,
-    );
-
-    handleScroll();
-
-    return () => {
-      stopObserving();
-      target.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
-      cancelAnimationFrame(frameId);
-    };
-  }, [scrollRootRef]);
-
-  const copyStagger: Variants = useMemo(
-    () => ({
-      hidden: {},
-      visible: {
-        transition: {
-          staggerChildren: reduceMotion ? 0 : 0.12,
-          delayChildren: reduceMotion ? 0 : 0.08,
-        },
-      },
-      exit: {
-        transition: { staggerChildren: reduceMotion ? 0 : 0.06, staggerDirection: -1 },
-      },
-    }),
-    [reduceMotion],
+      [rawProgress],
+    ),
   );
 
-  const copyItem: Variants = useMemo(
-    () => ({
-      hidden: reduceMotion ? { opacity: 1 } : { opacity: 0, y: 20 },
-      visible: {
-        opacity: 1,
-        y: 0,
-        transition: { duration: reduceMotion ? 0.01 : 0.55, ease: EASE_OUT_EXPO },
-      },
-      exit: (direction: 'up' | 'down') =>
-        reduceMotion
-          ? { opacity: 0, transition: { duration: 0.01 } }
-          : {
-              opacity: 0,
-              y: direction === 'up' ? 20 : -14,
-              transition: { duration: 0.48, ease: EASE_OUT_SOFT },
-            },
-    }),
-    [reduceMotion],
-  );
+  const eyebrowOpacity = useTransform(storyProgress, [0.04, 0.10, 0.88, 0.96], [0, 1, 1, 0]);
+
+  // Beat 1: Por eso aparece primero (0.00 - 0.50)
+  const conclusionOpacity = useTransform(storyProgress, [0.04, 0.12, 0.44, 0.50], [0, 1, 1, 0]);
+  const conclusionY = useTransform(storyProgress, [0.04, 0.12, 0.50], [20, 0, -16]);
+
+  // Beat 2: Pero saber qué importa no es suficiente (0.48 - 1.00)
+  const handoffOpacity = useTransform(storyProgress, [0.48, 0.54, 0.90, 0.98], [0, 1, 1, 0]);
+  const handoffY = useTransform(storyProgress, [0.48, 0.54, 0.98], [20, 0, -16]);
+
+  const areShapesActive = useTransform(storyProgress, (p: number) => p >= 0.02 && p <= 0.98);
 
   return (
     <section
       ref={sectionRef}
       id="transition-to-changes"
-      className="relative h-[520vh] min-h-[520vh] w-full bg-transparent contain-paint"
+      className="relative h-[320vh] min-h-[320vh] w-full bg-transparent contain-paint select-none"
+      data-chapter="transition"
       aria-label="Transición de Por qué a Cambios"
     >
-      <div
-        className="sticky top-0 w-full overflow-hidden"
-        style={{ height: 'var(--iv-why-bridge-viewport-height, 100svh)' }}
-      >
+      <div className="sticky top-0 w-full h-[100svh] overflow-hidden">
         <OrganicFramingShapes
-          active={areShapesActive}
+          active={true}
           animated={!reduceMotion && perf.tier === 'high'}
           variant="why-bridge"
         />
 
-        <AnimatePresence mode="wait">
-          {isCopyVisible && (
-            <motion.div
-              key="why-changes-eyebrow"
-              className="absolute top-[clamp(72px,12vh,96px)] left-1/2 -translate-x-1/2 z-20 iv-noise-filter-transition__eyebrow"
-              initial={reduceMotion ? false : { opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8, transition: { duration: reduceMotion ? 0.01 : 0.4, ease: EASE_OUT_SOFT } }}
-              transition={{ duration: reduceMotion ? 0.01 : 0.45, ease: EASE_OUT_SOFT }}
+        {/* Eyebrow badge */}
+        <motion.div
+          className="absolute top-[clamp(72px,12vh,96px)] left-1/2 -translate-x-1/2 z-20 iv-noise-filter-transition__eyebrow"
+          style={{ opacity: reduceMotion ? 1 : eyebrowOpacity }}
+          aria-hidden="true"
+        >
+          <span className="iv-noise-filter-transition__eyebrow-step">03 → 04</span>
+          <span className="iv-noise-filter-transition__eyebrow-sep">/</span>
+          <span className="iv-noise-filter-transition__eyebrow-label">DE POR QUÉ A CAMBIOS</span>
+        </motion.div>
+
+        <div className="why-content-stack absolute inset-0 z-10">
+          {/* Beat 1 */}
+          <motion.div
+            className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 pointer-events-none"
+            style={{
+              opacity: reduceMotion ? 1 : conclusionOpacity,
+              y: reduceMotion ? 0 : conclusionY,
+              display: useTransform(storyProgress, (p: number) => (p <= 0.52 ? 'flex' : 'none')),
+            }}
+          >
+            <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-white mb-5 leading-[1.1] max-w-4xl">
+              Por eso aparece primero.
+            </h2>
+            <p className="text-base sm:text-xl text-slate-300 font-light max-w-2xl mx-auto leading-relaxed">
+              {conclusion || 'FOCUS combina estos factores para decidir qué merece tu atención primero.'}
+            </p>
+          </motion.div>
+
+          {/* Beat 2 */}
+          <motion.div
+            className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 pointer-events-none"
+            style={{
+              opacity: reduceMotion ? 1 : handoffOpacity,
+              y: reduceMotion ? 0 : handoffY,
+              display: useTransform(storyProgress, (p: number) => (p >= 0.46 ? 'flex' : 'none')),
+            }}
+            aria-label="Pero saber qué importa no es suficiente. También necesitas saber qué cambió."
+          >
+            <p className="text-2xl md:text-3xl lg:text-4xl font-light tracking-wide mb-4 text-slate-400 max-w-4xl">
+              Pero saber qué importa no es suficiente.
+            </p>
+            <strong className="block text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-cyan-300 via-white to-violet-300 max-w-5xl">
+              También necesitas saber qué cambió.
+            </strong>
+            <div
+              className="mt-16 h-[2px] w-full max-w-[220px] bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent"
               aria-hidden="true"
-            >
-              <span className="iv-noise-filter-transition__eyebrow-step">03 → 04</span>
-              <span className="iv-noise-filter-transition__eyebrow-sep">/</span>
-              <span className="iv-noise-filter-transition__eyebrow-label">DE POR QUÉ A CAMBIOS</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence mode="wait" custom={scrollDirection}>
-          {isCopyVisible && beat === 'conclusion' && (
-            <motion.div
-              key="why-conclusion-copy"
-              className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-6"
-              variants={copyStagger}
-              custom={scrollDirection}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-            >
-              <motion.h2
-                variants={copyItem}
-                custom={scrollDirection}
-                className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-white mb-5 leading-[1.1] max-w-4xl"
-              >
-                Por eso aparece primero.
-              </motion.h2>
-
-              <motion.p
-                variants={copyItem}
-                custom={scrollDirection}
-                className="text-base sm:text-xl text-slate-300 font-light max-w-2xl mx-auto leading-relaxed"
-              >
-                {conclusion || 'FOCUS combina estos factores para decidir qué merece tu atención primero.'}
-              </motion.p>
-            </motion.div>
-          )}
-
-          {isCopyVisible && beat === 'handoff' && (
-            <motion.div
-              key="why-changes-copy"
-              className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-6"
-              variants={copyStagger}
-              custom={scrollDirection}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              aria-label="Pero saber qué importa no es suficiente. También necesitas saber qué cambió."
-            >
-              <motion.p
-                variants={copyItem}
-                custom={scrollDirection}
-                className="text-2xl md:text-3xl lg:text-4xl font-light tracking-wide mb-4 text-slate-400 max-w-4xl"
-              >
-                Pero saber qué importa no es suficiente.
-              </motion.p>
-
-              <motion.strong
-                variants={copyItem}
-                custom={scrollDirection}
-                className="block text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-cyan-300 via-white to-violet-300 max-w-5xl"
-              >
-                También necesitas saber qué cambió.
-              </motion.strong>
-
-              <motion.div
-                variants={copyItem}
-                custom={scrollDirection}
-                className="mt-16 h-[2px] w-full max-w-[220px] bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent"
-                aria-hidden="true"
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+            />
+          </motion.div>
+        </div>
       </div>
     </section>
   );
