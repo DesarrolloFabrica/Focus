@@ -4,6 +4,8 @@ import { Activity, Crosshair, Radar } from 'lucide-react';
 import { FocusAnomaly } from '../../types/focus';
 import { useBriefingSectionMetrics } from '../../perf';
 import { useIntroScrollRoot } from './ArrivalSection';
+import { GradientWaves } from '../effects/GradientWaves';
+import LightPillar from '../effects/LightPillar';
 
 interface AnomalySectionProps {
   anomaly: FocusAnomaly;
@@ -172,6 +174,7 @@ export const AnomalySection: React.FC<AnomalySectionProps> = ({ anomaly }) => {
   const reflectionY = useTransform(storyProgress, [0.82, 0.85, 0.92], [20, 0, -16]);
   const handoffOpacity = useTransform(storyProgress, [0.92, 0.95, 1.0], [0, 1, 1]);
   const handoffY = useTransform(storyProgress, [0.92, 0.95], [20, 0]);
+  const closingLayerOpacity = useTransform(storyProgress, [0.81, 0.85, 1.0], [0, 1, 1]);
   const greenPointOpacity = useTransform(storyProgress, [0.92, 0.95], [0, 1]);
   const greenPointScale = useTransform(storyProgress, [0.92, 0.96], [0.4, 1]);
 
@@ -186,6 +189,63 @@ export const AnomalySection: React.FC<AnomalySectionProps> = ({ anomaly }) => {
       <div className="aex-sticky">
         <div className="aex-ambient" aria-hidden="true">
           <div className="aex-ambient__base" />
+          {/* ReactBits Gradient Waves - exact reference implementation */}
+          <motion.div
+            className="aex-ambient__waves"
+            style={{ opacity: openingLayerOpacity }}
+          >
+            <GradientWaves
+              horizonColor="#5227FF"
+              waveColor="#FF9FFC"
+              crestColor="#FFFFFF"
+              speed={0.4}
+              amplitude={4.1}
+              waveScale={0.6}
+              waveRatio={0.9}
+              swell={35}
+              turbulence={20}
+              tilt={1.11}
+              zoom={1.0}
+              height={5.5}
+              fogDepth={15}
+              detail="medium"
+              brightness={1.0}
+              opacity={1.0}
+              mouseInteraction={true}
+              parallaxStrength={0.5}
+              grain={true}
+              grainIntensity={0.05}
+            />
+          </motion.div>
+
+          {/* LightPillar — closing text phase: "Pero no todo requiere atención" & "Ahora veamos lo que funciona" */}
+          <motion.div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 0,
+              opacity: closingLayerOpacity,
+              overflow: 'hidden',
+              pointerEvents: 'none',
+              mixBlendMode: 'screen',
+            }}
+          >
+            <LightPillar
+              topColor="#6366f1"
+              bottomColor="#06b6d4"
+              intensity={0.9}
+              rotationSpeed={0.24}
+              glowAmount={0.0024}
+              pillarWidth={9}
+              pillarHeight={0.38}
+              noiseIntensity={0.3}
+              pillarRotation={-15}
+              interactive={false}
+              mixBlendMode="normal"
+              quality="high"
+            />
+          </motion.div>
+
           <motion.div className="aex-ambient__violet" style={{ opacity: violetAmbientOpacity }} />
           <motion.div className="aex-ambient__coral" style={{ opacity: coralAmbientOpacity }} />
           <motion.div className="aex-ambient__calm" style={{ opacity: calmAmbientOpacity }} />

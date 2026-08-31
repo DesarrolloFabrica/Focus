@@ -5,6 +5,7 @@ import { FocusBriefing } from '../../types/focus';
 import { FocusCore } from '../core/FocusCore';
 import { useBriefingSectionMetrics } from '../../perf';
 import { useIntroScrollRoot } from './ArrivalSection';
+import { GradientWaves } from '../effects/GradientWaves';
 
 interface CompleteSectionProps {
   briefing: FocusBriefing;
@@ -564,6 +565,46 @@ export const CompleteSection: React.FC<CompleteSectionProps> = ({
           }}
         />
         <div className="decision-noise" />
+
+        {/* GradientWaves — grounded horizon floor beneath telemetry, keeping header and core clean */}
+        <motion.div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '45%',
+            zIndex: 10,
+            opacity: headerTitleOpacity,
+            pointerEvents: 'none',
+            overflow: 'hidden',
+            maskImage: 'linear-gradient(to top, black 30%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to top, black 30%, transparent 100%)',
+          }}
+        >
+          <GradientWaves
+            horizonColor="#020b18"
+            waveColor="#0369a1"
+            crestColor="#38bdf8"
+            speed={0.25}
+            amplitude={1.2}
+            waveScale={0.45}
+            waveRatio={0.8}
+            swell={18}
+            turbulence={10}
+            tilt={0}
+            zoom={1}
+            height={2.2}
+            fogDepth={22}
+            detail="medium"
+            brightness={0.7}
+            opacity={0.55}
+            mouseInteraction={false}
+            parallaxStrength={0.2}
+            grain
+            grainIntensity={0.03}
+          />
+        </motion.div>
 
         {/* ================================================================= */}
         {/* ACT 1: SÍNTESIS EXIT STAGE (Ya tienes el panorama)                */}

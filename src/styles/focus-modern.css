@@ -5270,8 +5270,11 @@
 .aex-sticky {
   position: sticky;
   top: 0;
-  height: min(calc(100svh - 100px), 856px);
-  min-height: 620px;
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   isolation: isolate;
   background: #030610;
@@ -5288,6 +5291,15 @@
   z-index: -2;
   overflow: hidden;
   background: #030610;
+}
+
+/* Full-bleed WebGL horizon matching ReactBits reference */
+.aex-ambient__waves {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .aex-ambient__base {
@@ -5906,7 +5918,7 @@
 
 @media (max-width: 720px) {
   .aex-section { height: 820vh; min-height: 4800px; }
-  .aex-sticky { height: calc(100svh - 74px); min-height: 0; max-height: none; }
+  .aex-sticky { height: 100svh; min-height: 0; max-height: none; }
   .aex-stage { padding: 18px 16px 14px; }
   .aex-stage__topline { font-size: 6.5px; }
   .aex-stage__topline span:last-child { display: none; }

@@ -14,6 +14,7 @@ import {
 import { FocusChange, FocusChangeEvent } from '../../types/focus';
 import { useBriefingSectionMetrics } from '../../perf';
 import { useIntroScrollRoot } from './ArrivalSection';
+import LightPillar from '../effects/LightPillar';
 
 interface WhatChangedSectionProps {
   changes: FocusChange;
@@ -179,6 +180,33 @@ export const WhatChangedSection: React.FC<WhatChangedSectionProps> = ({ changes 
           <div className="chg-ambient__grid" />
           <div className="chg-ambient__halo-1" />
           <div className="chg-ambient__halo-2" />
+          {/* LightPillar — only visible during the editorial opening text phase */}
+          <motion.div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 0,
+              opacity: reduceMotion ? 0 : openingLayerOpacity,
+              pointerEvents: 'none',
+              overflow: 'hidden',
+              mixBlendMode: 'screen',
+            }}
+          >
+            <LightPillar
+              topColor="#3d20a8"
+              bottomColor="#1040c0"
+              intensity={0.75}
+              rotationSpeed={0.22}
+              glowAmount={0.0016}
+              pillarWidth={11}
+              pillarHeight={0.38}
+              noiseIntensity={0.28}
+              pillarRotation={20}
+              interactive={false}
+              mixBlendMode="normal"
+              quality="high"
+            />
+          </motion.div>
         </div>
 
         {/* ACTO 1: Apertura Editorial */}
